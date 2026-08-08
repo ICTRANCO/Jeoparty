@@ -14,10 +14,18 @@ const scoreboardEl = document.getElementById('scoreboard');
 const scoringControls = document.getElementById('scoring-controls');
 const reviewBadge = document.getElementById('review-badge');
 const gameTitleEl = document.getElementById('game-title');
+const buzzerStatusEl = document.getElementById('buzzer-status');
+const buzzerOverlayEl = document.getElementById('buzzer-overlay');
+const buzzerResetBtn = document.getElementById('buzzer-reset-btn');
+const teamBuzzChipsEl = document.getElementById('team-buzz-chips');
+
+let hostStartBtn = null;
 
 let board = null;
 let activeCell = null;
 let disabledTeamsForQuestion = new Set();
+let buzzerWinner = null;
+let buzzersEnabled = false;
 
 async function loadBoard() {
   const res = await fetch('/api/board');
@@ -26,6 +34,9 @@ async function loadBoard() {
   document.title = `${board.gameTitle} Board`;
   render();
   renderScoreboard();
+  if (activeCell) {
+    renderScoringControls();
+  }
 }
 
 function cellFor(catIndex, points) {
@@ -62,11 +73,96 @@ function render() {
   });
 }
 
+function updateBuzzerStatus(message) {
+  if (buzzerStatusEl) {
+    buzzerStatusEl.textContent = message;
+  }
+  if (buzzerOverlayEl) {
+    buzzerOverlayEl.textContent = message;
+  }
+}
+
+function updateHostButtonState() {
+  if (!hostStartBtn) return;
+  hostStartBtn.disabled = !activeCell;
+  hostStartBtn.textContent = buzzersEnabled ? 'Buzzers Ready' : 'Start Buzzers';
+}
+
+function showTeamScoreFlash(teamIndex, delta) {
+  if (!scoreboardEl || teamIndex === null || teamIndex === undefined) return;
+
+  const card = scoreboardEl.querySelector(`[data-team-index="${teamIndex}"]`);
+  if (!card) return;
+
+  const flash = document.createElement('div');
+  flash.className = `score-flash ${delta >= 0 ? 'positive' : 'negative'}`;
+  flash.textContent = `${delta >= 0 ? '+' : '-'}${Math.abs(delta)}`;
+  card.appendChild(flash);
+
+  requestAnimationFrame(() => {
+    flash.classList.add('visible');
+  });
+
+  setTimeout(() => {
+    flash.remove();
+  }, 800);
+}
+
+function renderTeamBuzzChips() {
+  if (!teamBuzzChipsEl || !board) return;
+
+  teamBuzzChipsEl.innerHTML = '';
+
+  board.teams.forEach((team, index) => {
+    const chip = document.createElement('div');
+    chip.className = 'team-buzz-chip';
+
+    if (buzzerWinner === index) {
+      chip.classList.add('active');
+    } else if (disabledTeamsForQuestion.has(index)) {
+      chip.classList.add('disabled');
+    }
+
+    chip.textContent = team.name;
+    teamBuzzChipsEl.appendChild(chip);
+  });
+}
+
+function resetBuzzers() {
+  buzzerWinner = null;
+  updateBuzzerStatus('Waiting for a buzz');
+  renderTeamBuzzChips();
+  renderScoringControls();
+}
+
+function setBuzzWinner(teamIndex) {
+  buzzerWinner = teamIndex;
+  updateBuzzerStatus(`${board.teams[teamIndex].name} buzzed first`);
+  renderTeamBuzzChips();
+  renderScoringControls();
+}
+
+function handleBuzz(teamIndex) {
+  if (!activeCell) return;
+  if (!buzzersEnabled) {
+    updateBuzzerStatus('Waiting for a buzz');
+    return;
+  }
+  if (disabledTeamsForQuestion.has(teamIndex)) {
+    updateBuzzerStatus(`${board.teams[teamIndex].name} is disabled for this question`);
+    return;
+  }
+  if (buzzerWinner !== null) return;
+
+  setBuzzWinner(teamIndex);
+}
+
 function renderScoreboard() {
   scoreboardEl.innerHTML = '';
   board.teams.forEach((team, i) => {
     const card = document.createElement('div');
     card.className = 'team-card';
+    card.dataset.teamIndex = i;
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
@@ -100,49 +196,86 @@ async function saveTeamName(i, nameInput) {
 
 function renderScoringControls() {
   scoringControls.innerHTML = '';
-  board.teams.forEach((team, i) => {
-    const row = document.createElement('div');
-    row.className = 'scoring-row' + (disabledTeamsForQuestion.has(i) ? ' disabled-team' : '');
 
-    const label = document.createElement('span');
-    label.className = 'scoring-team-name';
-    label.textContent = team.name;
+  const prompt = document.createElement('div');
+  prompt.className = 'scoring-prompt';
+  prompt.textContent = buzzerWinner === null
+    ? 'No team has buzzed yet'
+    : `${board.teams[buzzerWinner].name} buzzed first`;
 
-    const correctBtn = document.createElement('button');
-    correctBtn.className = 'score-btn correct';
-    correctBtn.textContent = '✓ Correct';
-    correctBtn.disabled = disabledTeamsForQuestion.has(i);
-    correctBtn.addEventListener('click', () => applyScore(i, true));
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'scoring-button-row';
 
-    const incorrectBtn = document.createElement('button');
-    incorrectBtn.className = 'score-btn incorrect';
-    incorrectBtn.textContent = '✗ Incorrect';
-    incorrectBtn.disabled = disabledTeamsForQuestion.has(i);
-    incorrectBtn.addEventListener('click', () => applyScore(i, false));
+  const correctBtn = document.createElement('button');
+  correctBtn.className = 'score-btn correct';
+  correctBtn.textContent = '✓ Correct';
+  correctBtn.disabled = buzzerWinner === null;
+  correctBtn.addEventListener('click', () => applyScore(buzzerWinner, true));
 
-    row.appendChild(label);
-    row.appendChild(correctBtn);
-    row.appendChild(incorrectBtn);
-    scoringControls.appendChild(row);
+  const incorrectBtn = document.createElement('button');
+  incorrectBtn.className = 'score-btn incorrect';
+  incorrectBtn.textContent = '✗ Incorrect';
+  incorrectBtn.disabled = buzzerWinner === null;
+  incorrectBtn.addEventListener('click', () => applyScore(buzzerWinner, false));
+
+  const hostBtn = document.createElement('button');
+  hostBtn.className = 'btn-link host-btn';
+  hostBtn.id = 'host-start-btn';
+  hostBtn.textContent = buzzersEnabled ? 'Buzzers Ready' : 'Start Buzzers';
+  hostBtn.disabled = !activeCell;
+  hostBtn.addEventListener('click', () => {
+    buzzersEnabled = true;
+    updateHostButtonState();
+    updateBuzzerStatus('Buzzers are live');
+    renderScoringControls();
   });
+  hostStartBtn = hostBtn;
+
+  buttonRow.appendChild(correctBtn);
+  buttonRow.appendChild(incorrectBtn);
+  buttonRow.appendChild(hostBtn);
+
+  scoringControls.appendChild(prompt);
+  scoringControls.appendChild(buttonRow);
 }
 
 async function applyScore(teamIndex, correct) {
-  if (!activeCell) return;
-  if (!correct) {
-    disabledTeamsForQuestion.add(teamIndex);
-  }
+  if (!activeCell || teamIndex === null || teamIndex === undefined) return;
+
   const res = await fetch('/api/board/score', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ teamIndex, points: activeCell.points, correct }),
   });
+
+  if (!res.ok) {
+    console.error('Score update failed', await res.text());
+    return;
+  }
+
   board = await res.json();
   renderScoreboard();
-  renderScoringControls();
-  if (correct) {
-    await closeOverlay();
+  render();
+
+  if (!correct) {
+    const teamName = board.teams[teamIndex]?.name || 'The first team';
+    showTeamScoreFlash(teamIndex, -activeCell.points);
+    setTimeout(() => {
+      disabledTeamsForQuestion.add(teamIndex);
+      buzzerWinner = null;
+      updateBuzzerStatus(`${teamName} missed; waiting for the next buzz`);
+      renderTeamBuzzChips();
+      renderScoringControls();
+    }, 700);
+    return;
   }
+
+  showTeamScoreFlash(teamIndex, activeCell.points);
+  renderTeamBuzzChips();
+
+  setTimeout(() => {
+    closeOverlay();
+  }, 700);
 }
 
 function openCell(catIndex, points) {
@@ -150,6 +283,9 @@ function openCell(catIndex, points) {
   if (!cell) return;
   activeCell = cell;
   disabledTeamsForQuestion.clear();
+  buzzersEnabled = false;
+  resetBuzzers();
+  updateHostButtonState();
 
   flipFront.textContent = `$${points}`;
   clueText.textContent = cell.clue && cell.clue.trim()
@@ -168,6 +304,8 @@ function openCell(catIndex, points) {
     revealAnswerBtn.textContent = 'Reveal Answer';
   }
   reviewBadge.classList.toggle('hidden', !cell.used);
+  updateHostButtonState();
+  renderTeamBuzzChips();
   renderScoringControls();
 
   flipCard.classList.remove('flipped');
@@ -203,10 +341,33 @@ async function closeOverlay() {
   flipCard.classList.remove('flipped');
   activeCell = null;
   disabledTeamsForQuestion.clear();
-  render();
+  buzzersEnabled = false;
+  updateHostButtonState();
+  resetBuzzers();
+  await loadBoard();
 }
 
 closeBtn.addEventListener('click', closeOverlay);
+
+window.addEventListener('keydown', (event) => {
+  if (!activeCell) return;
+  if (event.target && ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+  if (event.repeat) return;
+
+  const key = event.key?.toLowerCase();
+  let teamIndex = null;
+
+  if (key === 'a' || event.code === 'KeyA') teamIndex = 0;
+  else if (key === 'b' || event.code === 'KeyB') teamIndex = 1;
+  else if (key === 'l' || event.code === 'KeyL') teamIndex = 2;
+
+  if (teamIndex === null) return;
+
+  event.preventDefault();
+  handleBuzz(teamIndex);
+});
+
+buzzerResetBtn.addEventListener('click', resetBuzzers);
 
 resetBtn.addEventListener('click', async () => {
   if (!confirm('Start a new game? This clears which squares have been played and resets scores to 0 (questions and team names stay the same).')) return;
@@ -214,6 +375,9 @@ resetBtn.addEventListener('click', async () => {
   board = await res.json();
   render();
   renderScoreboard();
+  renderTeamBuzzChips();
+  updateHostButtonState();
 });
 
 loadBoard();
+updateHostButtonState();

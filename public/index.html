@@ -4,13 +4,18 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jeoparty Board</title>
-<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="styles.css?v=3" />
 </head>
 <body>
 <div class="topbar">
   <h1 id="game-title">🏆 JEOPARTY!</h1>
-  <div style="display:flex; gap:10px;">
+  <div class="topbar-actions">
+    <div class="buzzer-hud">
+      <div class="buzzer-hint">Host starts the round</div>
+      <div class="buzzer-status" id="buzzer-status">reading question</div>
+    </div>
     <button class="btn-link" id="reset-btn">New Game</button>
+    <button class="btn-link" id="buzzer-reset-btn">Reset Buzzers</button>
     <a href="admin.html">Admin</a>
   </div>
 </div>
@@ -27,7 +32,9 @@
     <div class="flip-card" id="flip-card">
       <div class="flip-face flip-front" id="flip-front"></div>
       <div class="flip-face flip-back">
+        <div class="buzzer-overlay" id="buzzer-overlay">Waiting for a buzz</div>
         <div class="clue-text" id="clue-text"></div>
+        <div class="team-buzz-chips" id="team-buzz-chips"></div>
         <div class="answer-text" id="answer-text"></div>
       </div>
     </div>
@@ -41,6 +48,6 @@
   </div>
 </div>
 
-<script src="game.js"></script>
+<script src="game.js?v=4"></script>
 </body>
 </html>

@@ -126,7 +126,7 @@
       "points": 200,
       "clue": "This superhero has a shield and is known as Captain America.",
       "answer": "Captain America",
-      "used": false
+      "used": true
     },
     {
       "catIndex": 3,
@@ -223,11 +223,11 @@
   "teams": [
     {
       "name": "Team 1",
-      "score": 0
+      "score": -200
     },
     {
       "name": "Team 2",
-      "score": 0
+      "score": 200
     },
     {
       "name": "Team 3",

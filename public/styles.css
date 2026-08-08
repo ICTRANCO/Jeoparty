@@ -45,8 +45,50 @@ body {
   cursor: pointer;
 }
 
+.host-btn {
+  background: #ececec;
+  color: var(--ink);
+  font-weight: bold;
+  border-color: #d0d0d0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  margin-left: 8px;
+}
+
+.host-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .topbar a:hover, .btn-link:hover {
   background: rgba(255, 255, 255, 0.25);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.buzzer-hud {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-right: 6px;
+}
+
+.buzzer-hint {
+  font-size: 0.75rem;
+  color: #d8dcff;
+  white-space: nowrap;
+}
+
+.buzzer-status {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--gold);
+  white-space: nowrap;
 }
 
 .board-wrap {
@@ -137,6 +179,32 @@ body {
   align-items: center;
   gap: 8px;
   min-width: 160px;
+  position: relative;
+}
+
+.score-flash {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  opacity: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.score-flash.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.score-flash.positive {
+  color: #2ecc71;
+}
+
+.score-flash.negative {
+  color: #ff5b6b;
 }
 
 .team-name-input {
@@ -163,49 +231,72 @@ body {
   text-shadow: 2px 2px 0 #000;
 }
 
+.team-buzz-chips {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.team-buzz-chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: var(--white);
+  font-size: 0.95rem;
+  font-weight: bold;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.team-buzz-chip.active {
+  background: rgba(255, 204, 0, 0.2);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.team-buzz-chip.disabled {
+  background: rgba(120, 120, 140, 0.35);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #c7ccdc;
+  opacity: 0.75;
+}
+
 .scoring-controls {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
   margin-left: auto;
+  min-height: 44px;
 }
 
-.scoring-row {
+.scoring-prompt {
+  font-size: 0.9rem;
+  color: #d8dcff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.scoring-button-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  padding: 3px 6px 3px 10px;
-}
-
-.scoring-row.disabled-team {
-  opacity: 0.45;
-}
-
-.scoring-row.disabled-team .score-btn {
-  cursor: not-allowed;
-}
-
-.scoring-team-name {
-  font-size: 0.7rem;
-  color: #b8b9e8;
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 10px;
+  flex-wrap: nowrap;
 }
 
 .score-btn {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   line-height: 1;
-  padding: 5px 8px;
+  padding: 8px 12px;
   border-radius: 12px;
   border: none;
   cursor: pointer;
   font-weight: bold;
-  opacity: 0.75;
+  opacity: 0.9;
+  min-width: 110px;
+  flex-shrink: 0;
 }
 
 .score-btn.correct {
@@ -322,11 +413,24 @@ body {
   min-height: 2.6em;
 }
 
+.buzzer-overlay {
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  font-weight: bold;
+  color: var(--gold);
+  background: rgba(255, 204, 0, 0.16);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 8px 18px;
+  margin-bottom: 12px;
+  text-shadow: 1px 1px 0 #000;
+}
+
 .overlay-controls {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 32px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
   flex-wrap: wrap;
   width: 100%;
   max-width: 1000px;
@@ -345,6 +449,7 @@ body {
 .overlay-controls-main {
   display: flex;
   gap: 16px;
+  margin-left: auto;
 }
 
 .overlay-controls-main button {
