@@ -9,6 +9,8 @@ const gameTitleEl = document.getElementById('host-game-title');
 const buzzersBtn = document.getElementById('host-buzzers-btn');
 const remoteButtons = document.querySelectorAll('.host-remote-btn');
 const commandStatus = document.getElementById('host-command-status');
+const buzzerAlert = document.getElementById('host-buzzer-alert');
+const scoreAdjustGrid = document.getElementById('host-score-adjust-grid');
 
 const commandMessages = {
   'buzzers-ready': 'Buzzers are live on the gameboard',
@@ -18,8 +20,23 @@ const commandMessages = {
   'close-question': 'Question closed on the gameboard',
 };
 
+let currentChooser = null;
+
+function renderBuzzer(buzzer, chooser = currentChooser) {
+  buzzerAlert.textContent = buzzer
+    ? `${buzzer.teamName || 'A team'} buzzed first!`
+    : chooser
+      ? `${chooser.teamName}'s turn`
+      : 'No team has control yet';
+  buzzerAlert.classList.remove('visible');
+  void buzzerAlert.offsetWidth;
+  buzzerAlert.classList.add('visible');
+}
+
 function render(state) {
   const question = state?.question;
+  currentChooser = state?.chooser || null;
+  renderBuzzer(state?.buzzer, currentChooser);
   emptyState.classList.toggle('hidden', Boolean(question));
   questionView.classList.toggle('hidden', !question);
   remoteButtons.forEach((button) => { button.disabled = !question; });
@@ -37,12 +54,59 @@ function render(state) {
   questionView.classList.add('host-question-updated');
 }
 
-async function loadTitle() {
+function renderScoreAdjustments(board) {
+  scoreAdjustGrid.innerHTML = '';
+  board.teams.forEach((team, teamIndex) => {
+    const card = document.createElement('div');
+    card.className = 'host-score-adjust-card';
+
+    const name = document.createElement('strong');
+    name.textContent = team.name;
+    const total = document.createElement('span');
+    total.className = 'host-score-adjust-total';
+    total.textContent = team.score;
+
+    const controls = document.createElement('div');
+    controls.className = 'host-score-adjust-buttons';
+    const subtract = document.createElement('button');
+    subtract.className = 'host-score-adjust-btn subtract';
+    subtract.textContent = '−100';
+    const add = document.createElement('button');
+    add.className = 'host-score-adjust-btn add';
+    add.textContent = '+100';
+
+    [subtract, add].forEach((button) => {
+      button.addEventListener('click', async () => {
+        controls.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+        const delta = button === add ? 100 : -100;
+        const res = await fetch('/api/board/score-adjust', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ teamIndex, delta }),
+        });
+        if (!res.ok) {
+          commandStatus.textContent = (await res.json()).error || 'Score adjustment failed';
+          controls.querySelectorAll('button').forEach((item) => { item.disabled = false; });
+          return;
+        }
+        renderScoreAdjustments(await res.json());
+        commandStatus.textContent = `${team.name} ${delta > 0 ? '+' : '−'}100`;
+      });
+    });
+
+    controls.append(subtract, add);
+    card.append(name, total, controls);
+    scoreAdjustGrid.appendChild(card);
+  });
+}
+
+async function loadBoardState() {
   const res = await fetch('/api/board');
   if (!res.ok) return;
   const board = await res.json();
   gameTitleEl.textContent = board.gameTitle || 'JEOPARTY!';
   document.title = `${board.gameTitle || 'Jeoparty'} Host View`;
+  renderScoreAdjustments(board);
 }
 
 let socket;
@@ -57,6 +121,14 @@ function connect() {
   });
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
+    if (message.type === 'buzzer-state') {
+      renderBuzzer(message.teamIndex === null ? null : message, currentChooser);
+      return;
+    }
+    if (message.type === 'board-updated') {
+      loadBoardState();
+      return;
+    }
     if (commandMessages[message.type]) {
       commandStatus.textContent = commandMessages[message.type];
       if (message.type === 'buzzers-ready') buzzersBtn.classList.add('active');
@@ -83,5 +155,5 @@ remoteButtons.forEach((button) => {
   });
 });
 
-loadTitle();
+loadBoardState();
 connect();

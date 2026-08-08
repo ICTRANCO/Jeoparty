@@ -29,17 +29,28 @@ let buzzersEnabled = false;
 let remoteSocket = null;
 let remoteReconnectTimer = null;
 
+function sendRealtime(message) {
+  if (remoteSocket?.readyState === WebSocket.OPEN) {
+    remoteSocket.send(JSON.stringify(message));
+  }
+}
+
 function connectRemoteControls() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   remoteSocket = new WebSocket(`${protocol}//${location.host}/api/host/events`);
   remoteSocket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
+    if (message.type === 'board-updated') {
+      loadBoard();
+      return;
+    }
     if (!activeCell) return;
 
     if (message.type === 'buzzers-ready') {
       buzzersEnabled = true;
       updateHostButtonState();
       updateBuzzerStatus('Buzzers are live');
+      renderTeamBuzzChips();
       renderScoringControls();
     } else if (message.type === 'reveal-answer') {
       revealAnswerBtn.click();
@@ -119,23 +130,26 @@ function updateHostButtonState() {
 }
 
 function showTeamScoreFlash(teamIndex, delta) {
-  if (!scoreboardEl || teamIndex === null || teamIndex === undefined) return;
+  if (teamIndex === null || teamIndex === undefined) return;
 
-  const card = scoreboardEl.querySelector(`[data-team-index="${teamIndex}"]`);
-  if (!card) return;
+  const teamChip = teamBuzzChipsEl?.querySelector(`[data-team-index="${teamIndex}"]`);
+  const target = teamChip || scoreboardEl?.querySelector(`[data-team-index="${teamIndex}"]`);
+  if (!target) return;
 
   const flash = document.createElement('div');
-  flash.className = `score-flash ${delta >= 0 ? 'positive' : 'negative'}`;
+  flash.className = `${teamChip ? 'question-score-flash' : 'score-flash'} ${delta >= 0 ? 'positive' : 'negative'}`;
   flash.textContent = `${delta >= 0 ? '+' : '-'}${Math.abs(delta)}`;
-  card.appendChild(flash);
+  target.appendChild(flash);
 
-  requestAnimationFrame(() => {
-    flash.classList.add('visible');
-  });
+  if (!teamChip) {
+    requestAnimationFrame(() => {
+      flash.classList.add('visible');
+    });
+  }
 
   setTimeout(() => {
     flash.remove();
-  }, 800);
+  }, 1400);
 }
 
 function renderTeamBuzzChips() {
@@ -146,11 +160,14 @@ function renderTeamBuzzChips() {
   board.teams.forEach((team, index) => {
     const chip = document.createElement('div');
     chip.className = 'team-buzz-chip';
+    chip.dataset.teamIndex = index;
 
     if (buzzerWinner === index) {
       chip.classList.add('active');
     } else if (disabledTeamsForQuestion.has(index)) {
       chip.classList.add('disabled');
+    } else if (!buzzersEnabled) {
+      chip.classList.add('inactive');
     }
 
     chip.textContent = team.name;
@@ -160,6 +177,7 @@ function renderTeamBuzzChips() {
 
 function resetBuzzers() {
   buzzerWinner = null;
+  sendRealtime({ type: 'buzzer-state', teamIndex: null });
   updateBuzzerStatus('Waiting for a buzz');
   renderTeamBuzzChips();
   renderScoringControls();
@@ -167,6 +185,7 @@ function resetBuzzers() {
 
 function setBuzzWinner(teamIndex) {
   buzzerWinner = teamIndex;
+  sendRealtime({ type: 'buzzer-state', teamIndex, teamName: board.teams[teamIndex].name });
   updateBuzzerStatus(`${board.teams[teamIndex].name} buzzed first`);
   renderTeamBuzzChips();
   renderScoringControls();
@@ -257,6 +276,7 @@ function renderScoringControls() {
     buzzersEnabled = true;
     updateHostButtonState();
     updateBuzzerStatus('Buzzers are live');
+    renderTeamBuzzChips();
     renderScoringControls();
   });
   hostStartBtn = hostBtn;
@@ -296,16 +316,15 @@ async function applyScore(teamIndex, correct) {
       updateBuzzerStatus(`${teamName} missed; waiting for the next buzz`);
       renderTeamBuzzChips();
       renderScoringControls();
-    }, 700);
+    }, 1300);
     return;
   }
 
   showTeamScoreFlash(teamIndex, activeCell.points);
-  renderTeamBuzzChips();
 
   setTimeout(() => {
     closeOverlay();
-  }, 700);
+  }, 1400);
 }
 
 async function publishHostQuestion(catIndex, points) {

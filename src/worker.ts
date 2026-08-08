@@ -18,6 +18,8 @@ function normalizedBoard(value: Board): Board {
     board.teams = Array.from({ length: 3 }, (_, index) => ({ name: `Team ${index + 1}`, score: 0 }));
   }
   board.gameTitle = String(board.gameTitle || '').trim() || DEFAULT_GAME_TITLE;
+  if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex as number]) board.chooserTeamIndex = null;
+  delete (board as Board & { scoreHistory?: unknown[] }).scoreHistory;
   return board;
 }
 
@@ -54,6 +56,7 @@ export class GameRoom extends DurableObject<Env> {
   private board!: Board;
   private config!: GameConfig;
   private currentQuestion: HostQuestion | null = null;
+  private currentBuzzer: HostBuzzer | null = null;
   private revision = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -62,13 +65,22 @@ export class GameRoom extends DurableObject<Env> {
       this.board = normalizedBoard((await ctx.storage.get<Board>('board')) || (initialBoard as Board));
       this.config = (await ctx.storage.get<GameConfig>('config')) || { apiKey: '' };
       this.currentQuestion = (await ctx.storage.get<HostQuestion>('currentQuestion')) || null;
+      this.currentBuzzer = (await ctx.storage.get<HostBuzzer>('currentBuzzer')) || null;
       this.revision = (await ctx.storage.get<number>('revision')) || 0;
       await ctx.storage.put({ board: this.board, config: this.config });
     });
   }
 
   private hostState(): HostState {
-    return { revision: this.revision, question: this.currentQuestion };
+    return {
+      revision: this.revision,
+      question: this.currentQuestion,
+      buzzer: this.currentBuzzer,
+      chooser: this.board.chooserTeamIndex === null ? null : {
+        teamIndex: this.board.chooserTeamIndex,
+        teamName: this.board.teams[this.board.chooserTeamIndex].name,
+      },
+    };
   }
 
   private broadcastHostState(): void {
@@ -93,12 +105,24 @@ export class GameRoom extends DurableObject<Env> {
     }
   }
 
-  webSocketMessage(_socket: WebSocket, message: string | ArrayBuffer): void {
+  async webSocketMessage(_socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string') return;
     try {
       const command = JSON.parse(message) as { type?: string };
       if (command.type === 'start-buzzers') {
         this.broadcast({ type: 'buzzers-ready', sentAt: Date.now() });
+      } else if (command.type === 'buzzer-state') {
+        const buzzer = command as { type: string; teamIndex?: number | null; teamName?: string };
+        this.currentBuzzer = buzzer.teamIndex === null
+          ? null
+          : { teamIndex: Number(buzzer.teamIndex), teamName: String(buzzer.teamName || '') };
+        await this.ctx.storage.put('currentBuzzer', this.currentBuzzer);
+        this.broadcast({
+          type: 'buzzer-state',
+          teamIndex: buzzer.teamIndex,
+          teamName: buzzer.teamName,
+          sentAt: Date.now(),
+        });
       } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'close-question'].includes(command.type || '')) {
         this.broadcast({ type: command.type, sentAt: Date.now() });
       }
@@ -109,8 +133,9 @@ export class GameRoom extends DurableObject<Env> {
 
   private async setCurrentQuestion(question: HostQuestion | null): Promise<void> {
     this.currentQuestion = question;
+    this.currentBuzzer = null;
     this.revision += 1;
-    await this.ctx.storage.put({ currentQuestion: question, revision: this.revision });
+    await this.ctx.storage.put({ currentQuestion: question, currentBuzzer: null, revision: this.revision });
     this.broadcastHostState();
   }
 
@@ -166,6 +191,7 @@ export class GameRoom extends DurableObject<Env> {
       if (url.pathname === '/api/board/reset' && method === 'POST') {
         this.board.cells.forEach((cell) => { cell.used = false; });
         this.board.teams.forEach((team) => { team.score = 0; });
+        this.board.chooserTeamIndex = null;
         await this.ctx.storage.put('board', this.board);
         await this.setCurrentQuestion(null);
         return json(this.board);
@@ -189,7 +215,22 @@ export class GameRoom extends DurableObject<Env> {
         const points = Number(body.points);
         if (!Number.isFinite(points)) return json({ error: 'points must be a number' }, 400);
         team.score += body.correct ? points : -points;
+        if (body.correct) this.board.chooserTeamIndex = Number(body.teamIndex);
         await this.ctx.storage.put('board', this.board);
+        this.broadcastHostState();
+        this.broadcast({ type: 'board-updated', sentAt: Date.now() });
+        return json(this.board);
+      }
+
+      if (url.pathname === '/api/board/score-adjust' && method === 'POST') {
+        const body = await request.json<{ teamIndex: number; delta: number }>();
+        const team = this.board.teams[Number(body.teamIndex)];
+        const delta = Number(body.delta);
+        if (!team) return json({ error: 'team not found' }, 404);
+        if (delta !== 100 && delta !== -100) return json({ error: 'delta must be 100 or -100' }, 400);
+        team.score += delta;
+        await this.ctx.storage.put('board', this.board);
+        this.broadcast({ type: 'board-updated', sentAt: Date.now() });
         return json(this.board);
       }
 
@@ -284,9 +325,10 @@ export default {
 
 interface Cell { catIndex: number; points: number; clue: string; answer: string; used: boolean }
 interface Team { name: string; score: number }
-interface Board { gameTitle: string; categories: string[]; ageGroup: string; cells: Cell[]; teams: Team[] }
+interface Board { gameTitle: string; categories: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null }
 interface GameConfig { apiKey: string }
 interface HostQuestion { catIndex: number; category: string; points: number; clue: string; answer: string }
-interface HostState { revision: number; question: HostQuestion | null }
+interface HostBuzzer { teamIndex: number; teamName: string }
+interface HostState { revision: number; question: HostQuestion | null; buzzer: HostBuzzer | null; chooser: HostBuzzer | null }
 interface GeneratedCell { points: number; clue: string; answer: string }
 interface OpenAiResponse { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } }

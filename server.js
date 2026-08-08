@@ -18,6 +18,8 @@ const MODEL = 'gpt-4o-mini';
 
 let currentQuestion = null;
 let currentQuestionRevision = 0;
+let currentBuzzer = null;
+let currentChooser = null;
 const hostViewClients = new Set();
 const realtimeClients = new Set();
 
@@ -64,6 +66,10 @@ async function readBoard() {
   if (typeof board.gameTitle !== 'string' || !board.gameTitle.trim()) {
     board.gameTitle = DEFAULT_GAME_TITLE;
   }
+  if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex]) {
+    board.chooserTeamIndex = null;
+  }
+  delete board.scoreHistory;
   return board;
 }
 
@@ -85,7 +91,7 @@ function cellFor(board, catIndex, points) {
 }
 
 function hostViewState() {
-  return { revision: currentQuestionRevision, question: currentQuestion };
+  return { revision: currentQuestionRevision, question: currentQuestion, buzzer: currentBuzzer, chooser: currentChooser };
 }
 
 function notifyHostViews() {
@@ -185,6 +191,7 @@ app.post('/api/host/question', async (req, res) => {
     clue: cell.clue || '',
     answer: cell.answer || '',
   };
+  currentBuzzer = null;
   currentQuestionRevision += 1;
   notifyHostViews();
   res.json(hostViewState());
@@ -192,6 +199,7 @@ app.post('/api/host/question', async (req, res) => {
 
 app.delete('/api/host/question', (req, res) => {
   currentQuestion = null;
+  currentBuzzer = null;
   currentQuestionRevision += 1;
   notifyHostViews();
   res.json(hostViewState());
@@ -201,8 +209,10 @@ app.post('/api/board/reset', async (req, res) => {
   const board = await readBoard();
   board.cells.forEach((c) => (c.used = false));
   board.teams.forEach((t) => (t.score = 0));
+  board.chooserTeamIndex = null;
   await writeBoard(board);
   currentQuestion = null;
+  currentChooser = null;
   currentQuestionRevision += 1;
   notifyHostViews();
   res.json(board);
@@ -233,7 +243,28 @@ app.post('/api/board/score', async (req, res) => {
     return res.status(400).json({ error: 'points must be a number' });
   }
   team.score += correct ? value : -value;
+  if (correct) {
+    board.chooserTeamIndex = Number(teamIndex);
+    currentChooser = { teamIndex: Number(teamIndex), teamName: team.name };
+  }
   await writeBoard(board);
+  notifyHostViews();
+  broadcastRealtime({ type: 'board-updated', sentAt: Date.now() });
+  res.json(board);
+});
+
+app.post('/api/board/score-adjust', async (req, res) => {
+  const teamIndex = Number(req.body.teamIndex);
+  const delta = Number(req.body.delta);
+  const board = await readBoard();
+  const team = board.teams[teamIndex];
+  if (!team) return res.status(404).json({ error: 'team not found' });
+  if (![100, -100].includes(delta)) {
+    return res.status(400).json({ error: 'delta must be 100 or -100' });
+  }
+  team.score += delta;
+  await writeBoard(board);
+  broadcastRealtime({ type: 'board-updated', sentAt: Date.now() });
   res.json(board);
 });
 
@@ -274,6 +305,7 @@ For EACH category, write exactly 5 clues, one for each point value: 100, 200, 30
 - Follow classic Jeoparty style: the "clue" is phrased as a statement of fact (not a question), and the "answer" is the correct response to it.
 - Keep each clue under 200 characters and each answer under 80 characters.
 - Do not reuse the category name verbatim inside its own clues.
+- Once all clues and answers are written, review the answers to ensure they are correct and unambiguous as if you are expert on that category topic
 
 Respond with ONLY raw JSON (no markdown code fences, no commentary) in exactly this shape:
 {
@@ -375,6 +407,16 @@ ensureDataFiles().then(() => {
         const message = JSON.parse(rawMessage.toString());
         if (message.type === 'start-buzzers') {
           broadcastRealtime({ type: 'buzzers-ready', sentAt: Date.now() });
+        } else if (message.type === 'buzzer-state') {
+          currentBuzzer = message.teamIndex === null
+            ? null
+            : { teamIndex: message.teamIndex, teamName: message.teamName };
+          broadcastRealtime({
+            type: 'buzzer-state',
+            teamIndex: message.teamIndex,
+            teamName: message.teamName,
+            sentAt: Date.now(),
+          });
         } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'close-question'].includes(message.type)) {
           broadcastRealtime({ type: message.type, sentAt: Date.now() });
         }

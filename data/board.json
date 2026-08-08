@@ -234,5 +234,6 @@
       "score": 0
     }
   ],
-  "gameTitle": "JEOPARTY!"
+  "gameTitle": "JEOPARTY!",
+  "chooserTeamIndex": null
 }
