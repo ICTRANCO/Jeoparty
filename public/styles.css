@@ -103,13 +103,124 @@ body {
 .points-cell.used {
   background: #0a0a2a;
   color: #3a3a5a;
-  cursor: default;
+  cursor: pointer;
   text-shadow: none;
+}
+
+.points-cell.used:hover {
+  background: #14143a;
+  color: #6a6ac0;
 }
 
 .points-cell.empty {
   color: #6a6ac0;
   font-size: 1rem;
+}
+
+.scoreboard {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 0 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.team-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.team-name-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.35);
+  color: var(--gold);
+  font-weight: bold;
+  font-size: 1rem;
+  text-align: center;
+  padding: 4px 2px;
+  width: 100%;
+}
+
+.team-name-input:focus {
+  outline: none;
+  border-bottom-color: var(--gold);
+}
+
+.team-score {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--white);
+  text-shadow: 2px 2px 0 #000;
+}
+
+.scoring-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.scoring-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 3px 6px 3px 10px;
+}
+
+.scoring-row.disabled-team {
+  opacity: 0.45;
+}
+
+.scoring-row.disabled-team .score-btn {
+  cursor: not-allowed;
+}
+
+.scoring-team-name {
+  font-size: 0.7rem;
+  color: #b8b9e8;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-btn {
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  opacity: 0.75;
+}
+
+.score-btn.correct {
+  background: #2ecc71;
+  color: #063a1c;
+}
+
+.score-btn.incorrect {
+  background: #e94560;
+  color: var(--white);
+}
+
+.score-btn:hover {
+  opacity: 1;
+  filter: brightness(1.08);
 }
 
 /* Fullscreen flip card */
@@ -120,17 +231,40 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   z-index: 1000;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 5vw 40px;
 }
 
 .overlay.hidden {
   display: none;
 }
 
+.review-badge {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 204, 0, 0.15);
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  z-index: 10;
+}
+
+.review-badge.hidden {
+  display: none;
+}
+
 .flip-stage {
   width: 100%;
   flex: 1;
+  min-height: 60vh;
   perspective: 1600px;
   display: flex;
 }
@@ -190,7 +324,13 @@ body {
 
 .overlay-controls {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 1000px;
+  padding: 0 5vw;
   padding-bottom: 5vh;
   opacity: 0;
   pointer-events: none;
@@ -202,7 +342,12 @@ body {
   pointer-events: auto;
 }
 
-.overlay-controls button {
+.overlay-controls-main {
+  display: flex;
+  gap: 16px;
+}
+
+.overlay-controls-main button {
   font-size: 1rem;
   padding: 12px 22px;
   border-radius: 8px;
@@ -213,14 +358,20 @@ body {
   color: var(--ink);
 }
 
-.overlay-controls button.secondary {
+.overlay-controls-main button.secondary {
   background: rgba(255, 255, 255, 0.15);
   color: var(--white);
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
-.overlay-controls button:hover {
+.overlay-controls-main button:hover {
   filter: brightness(1.08);
+}
+
+.overlay-controls-main button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
 }
 
 /* Admin page */

@@ -1,5 +1,9 @@
 const POINTS = [100, 200, 300, 400, 500];
 
+const gameTitleInput = document.getElementById('game-title-input');
+const saveTitleBtn = document.getElementById('save-title-btn');
+const titleStatus = document.getElementById('title-status');
+
 const categoryInputsEl = document.getElementById('category-inputs');
 const saveCategoriesBtn = document.getElementById('save-categories-btn');
 const categoryStatus = document.getElementById('category-status');
@@ -24,6 +28,7 @@ function setStatus(el, message, type) {
 async function loadBoard() {
   const res = await fetch('/api/board');
   board = await res.json();
+  gameTitleInput.value = board.gameTitle || '';
   ageGroupInput.value = board.ageGroup || '';
   renderCategoryInputs();
   renderQaTable();
@@ -32,7 +37,7 @@ async function loadBoard() {
 async function loadConfig() {
   const res = await fetch('/api/config');
   const config = await res.json();
-  apiKeyInput.placeholder = config.hasApiKey ? 'Key saved (enter a new one to replace)' : 'sk-ant-...';
+  apiKeyInput.placeholder = config.hasApiKey ? 'Key saved (enter a new one to replace)' : 'sk-...';
 }
 
 function renderCategoryInputs() {
@@ -144,6 +149,25 @@ function renderQaTable() {
     qaTable.appendChild(row);
   });
 }
+
+saveTitleBtn.addEventListener('click', async () => {
+  saveTitleBtn.disabled = true;
+  try {
+    const res = await fetch('/api/board/title', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: gameTitleInput.value.trim() }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    board = await res.json();
+    gameTitleInput.value = board.gameTitle;
+    setStatus(titleStatus, 'Title saved.', 'ok');
+  } catch (err) {
+    setStatus(titleStatus, err.message, 'error');
+  } finally {
+    saveTitleBtn.disabled = false;
+  }
+});
 
 saveCategoriesBtn.addEventListener('click', async () => {
   const inputs = categoryInputsEl.querySelectorAll('input');

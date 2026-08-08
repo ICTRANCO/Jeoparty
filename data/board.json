@@ -1,223 +1,238 @@
 {
   "categories": [
     "Science",
-    "Category 2",
-    "Category 3",
-    "Category 4",
-    "Category 5",
-    "Category 6"
+    "math",
+    "Dog Man Comics",
+    "Marvel Super Heroes",
+    "Egyptian history",
+    "World War II"
   ],
-  "ageGroup": "",
+  "ageGroup": "6-10 year olds",
   "cells": [
     {
       "catIndex": 0,
       "points": 100,
-      "clue": "This gas makes up about 78% of Earth's atmosphere.",
-      "answer": "Nitrogen",
+      "clue": "This type of energy comes from the sun.",
+      "answer": "Solar energy",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 200,
-      "clue": "",
-      "answer": "",
+      "clue": "This gas is what we breathe in to stay alive.",
+      "answer": "Oxygen",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 300,
-      "clue": "",
-      "answer": "",
+      "clue": "Water changes into this form when it freezes.",
+      "answer": "Ice",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 400,
-      "clue": "",
-      "answer": "",
+      "clue": "The human body has this many senses.",
+      "answer": "Five",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 500,
-      "clue": "",
-      "answer": "",
+      "clue": "This planet is known as the 'Red Planet.'",
+      "answer": "Mars",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 100,
-      "clue": "",
-      "answer": "",
+      "clue": "The number of sides on a triangle.",
+      "answer": "Three",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 200,
-      "clue": "",
-      "answer": "",
+      "clue": "Five plus three equals this number.",
+      "answer": "Eight",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 300,
-      "clue": "",
-      "answer": "",
+      "clue": "This shape has four equal sides.",
+      "answer": "Square",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 400,
-      "clue": "",
-      "answer": "",
+      "clue": "Ten times ten is this number.",
+      "answer": "One hundred",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 500,
-      "clue": "",
-      "answer": "",
+      "clue": "This is the value of pi (approximately).",
+      "answer": "3.14",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 100,
-      "clue": "",
-      "answer": "",
+      "clue": "He is the superhero dog who is also a police officer.",
+      "answer": "Dog Man",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 200,
-      "clue": "",
-      "answer": "",
+      "clue": "He is the sidekick cat who helps Dog Man.",
+      "answer": "Cat Kid",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 300,
-      "clue": "",
-      "answer": "",
+      "clue": "This villain is known for being very mean and bad.",
+      "answer": "Petey",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 400,
-      "clue": "",
-      "answer": "",
+      "clue": "Dog Man's full name includes this word 'Hero.'",
+      "answer": "Dog Man's full name",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 500,
-      "clue": "",
-      "answer": "",
+      "clue": "This is the name of Dog Man's creator.",
+      "answer": "Dav Pilkey",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 100,
-      "clue": "",
-      "answer": "",
+      "clue": "This hero wears a red suit and has spider-like powers.",
+      "answer": "Spider-Man",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 200,
-      "clue": "",
-      "answer": "",
+      "clue": "This superhero has a shield and is known as Captain America.",
+      "answer": "Captain America",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 300,
-      "clue": "",
-      "answer": "",
-      "used": false
+      "clue": "This superhero can control thunder and lightning.",
+      "answer": "Thor",
+      "used": true
     },
     {
       "catIndex": 3,
       "points": 400,
-      "clue": "",
-      "answer": "",
+      "clue": "This hero is known for his iron suit and technology.",
+      "answer": "Iron Man",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 500,
-      "clue": "",
-      "answer": "",
+      "clue": "This character is the leader of the Avengers.",
+      "answer": "Captain America",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 100,
-      "clue": "",
-      "answer": "",
+      "clue": "These are the large stone structures built as tombs for pharaohs.",
+      "answer": "Pyramids",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 200,
-      "clue": "",
-      "answer": "",
+      "clue": "This river was essential to life in ancient Egypt.",
+      "answer": "Nile River",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 300,
-      "clue": "",
-      "answer": "",
+      "clue": "This famous queen was known for her beauty and cunning.",
+      "answer": "Cleopatra",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 400,
-      "clue": "",
-      "answer": "",
+      "clue": "Tutankhamun was famous for this item found in his tomb.",
+      "answer": "Golden mask",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 500,
-      "clue": "",
-      "answer": "",
+      "clue": "This was the writing system used in ancient Egypt.",
+      "answer": "Hieroglyphics",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 100,
-      "clue": "",
-      "answer": "",
+      "clue": "This was the conflict from 1939 to 1945 in which many countries fought.",
+      "answer": "World War II",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 200,
-      "clue": "",
-      "answer": "",
+      "clue": "This event brought the United States into the war in 1941.",
+      "answer": "Pearl Harbor attack",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 300,
-      "clue": "",
-      "answer": "",
+      "clue": "This famous leader was the Prime Minister of the UK during the war.",
+      "answer": "Winston Churchill",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 400,
-      "clue": "",
-      "answer": "",
+      "clue": "This military operation was the Allied invasion of France.",
+      "answer": "D-Day",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 500,
-      "clue": "",
-      "answer": "",
+      "clue": "This was the code name for the project to develop the atomic bomb.",
+      "answer": "Manhattan Project",
       "used": false
     }
-  ]
+  ],
+  "teams": [
+    {
+      "name": "Team 1",
+      "score": 0
+    },
+    {
+      "name": "Team 2",
+      "score": 0
+    },
+    {
+      "name": "Team 3",
+      "score": 0
+    }
+  ],
+  "gameTitle": "JEOPARTY!"
 }

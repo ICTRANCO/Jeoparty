@@ -1,11 +1,12 @@
 {
-  "name": "jeopardy",
+  "name": "jeoparty",
   "version": "1.0.0",
   "private": true,
-  "description": "Custom Jeopardy-style game board with AI-assisted question generation",
+  "description": "Custom Jeoparty-style game board with AI-assisted question generation",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2"

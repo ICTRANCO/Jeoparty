@@ -11,11 +11,17 @@ const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 
 const POINTS = [100, 200, 300, 400, 500];
 const NUM_CATEGORIES = 6;
-const MODEL = 'claude-sonnet-5';
-const ANTHROPIC_VERSION = '2023-06-01';
+const NUM_TEAMS = 3;
+const MODEL = 'gpt-4o-mini';
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+function defaultTeams() {
+  return Array.from({ length: NUM_TEAMS }, (_, i) => ({ name: `Team ${i + 1}`, score: 0 }));
+}
+
+const DEFAULT_GAME_TITLE = 'JEOPARTY!';
 
 function defaultBoard() {
   const categories = Array.from({ length: NUM_CATEGORIES }, (_, i) => `Category ${i + 1}`);
@@ -25,7 +31,7 @@ function defaultBoard() {
       cells.push({ catIndex: c, points, clue: '', answer: '', used: false });
     }
   }
-  return { categories, ageGroup: '', cells };
+  return { gameTitle: DEFAULT_GAME_TITLE, categories, ageGroup: '', cells, teams: defaultTeams() };
 }
 
 async function ensureDataFiles() {
@@ -44,7 +50,14 @@ async function ensureDataFiles() {
 
 async function readBoard() {
   const raw = await fs.readFile(BOARD_PATH, 'utf-8');
-  return JSON.parse(raw);
+  const board = JSON.parse(raw);
+  if (!Array.isArray(board.teams) || board.teams.length !== NUM_TEAMS) {
+    board.teams = defaultTeams();
+  }
+  if (typeof board.gameTitle !== 'string' || !board.gameTitle.trim()) {
+    board.gameTitle = DEFAULT_GAME_TITLE;
+  }
+  return board;
 }
 
 async function writeBoard(board) {
@@ -68,6 +81,14 @@ function cellFor(board, catIndex, points) {
 
 app.get('/api/board', async (req, res) => {
   const board = await readBoard();
+  res.json(board);
+});
+
+app.put('/api/board/title', async (req, res) => {
+  const { title } = req.body;
+  const board = await readBoard();
+  board.gameTitle = String(title || '').trim().slice(0, 60) || DEFAULT_GAME_TITLE;
+  await writeBoard(board);
   res.json(board);
 });
 
@@ -106,6 +127,36 @@ app.post('/api/board/reveal', async (req, res) => {
 app.post('/api/board/reset', async (req, res) => {
   const board = await readBoard();
   board.cells.forEach((c) => (c.used = false));
+  board.teams.forEach((t) => (t.score = 0));
+  await writeBoard(board);
+  res.json(board);
+});
+
+// ---- Teams / scoring ----
+
+app.put('/api/board/teams', async (req, res) => {
+  const { teams } = req.body;
+  if (!Array.isArray(teams) || teams.length !== NUM_TEAMS) {
+    return res.status(400).json({ error: `teams must be an array of ${NUM_TEAMS} names` });
+  }
+  const board = await readBoard();
+  board.teams.forEach((t, i) => {
+    t.name = String(teams[i] || '').slice(0, 30) || `Team ${i + 1}`;
+  });
+  await writeBoard(board);
+  res.json(board);
+});
+
+app.post('/api/board/score', async (req, res) => {
+  const { teamIndex, points, correct } = req.body;
+  const board = await readBoard();
+  const team = board.teams[teamIndex];
+  if (!team) return res.status(404).json({ error: 'team not found' });
+  const value = Number(points);
+  if (!Number.isFinite(value)) {
+    return res.status(400).json({ error: 'points must be a number' });
+  }
+  team.score += correct ? value : -value;
   await writeBoard(board);
   res.json(board);
 });
@@ -135,7 +186,7 @@ app.delete('/api/config/apikey', async (req, res) => {
 
 function buildPrompt(categories, ageGroup) {
   const age = ageGroup && ageGroup.trim() ? ageGroup.trim() : 'general adult audience';
-  return `You are writing clues for a home-made Jeopardy-style trivia game.
+  return `You are writing clues for a home-made Jeoparty-style trivia game.
 
 Categories (use these exact names as JSON keys): ${categories.map((c) => `"${c}"`).join(', ')}
 
@@ -144,7 +195,7 @@ Audience / age group: ${age}
 For EACH category, write exactly 5 clues, one for each point value: 100, 200, 300, 400, 500.
 - 100 should be the easiest, 500 the hardest, with a smooth difficulty curve in between.
 - Keep language, topics, and complexity appropriate for the stated audience/age group.
-- Follow classic Jeopardy style: the "clue" is phrased as a statement of fact (not a question), and the "answer" is the correct response to it.
+- Follow classic Jeoparty style: the "clue" is phrased as a statement of fact (not a question), and the "answer" is the correct response to it.
 - Keep each clue under 200 characters and each answer under 80 characters.
 - Do not reuse the category name verbatim inside its own clues.
 
@@ -188,16 +239,16 @@ app.post('/api/generate', async (req, res) => {
 
     const prompt = buildPrompt(categories, ageGroup);
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': config.apiKey,
-        'anthropic-version': ANTHROPIC_VERSION,
+        authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 4096,
+        response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),
     });
@@ -208,11 +259,11 @@ app.post('/api/generate', async (req, res) => {
       try {
         message = JSON.parse(errBody).error?.message || errBody;
       } catch {}
-      return res.status(response.status).json({ error: `Anthropic API error: ${message}` });
+      return res.status(response.status).json({ error: `OpenAI API error: ${message}` });
     }
 
     const data = await response.json();
-    const text = (data.content || []).map((b) => b.text || '').join('');
+    const text = data.choices?.[0]?.message?.content || '';
     const parsed = extractJson(text);
 
     for (let c = 0; c < categories.length; c++) {
@@ -238,6 +289,6 @@ app.post('/api/generate', async (req, res) => {
 
 ensureDataFiles().then(() => {
   app.listen(PORT, () => {
-    console.log(`Jeopardy server running at http://localhost:${PORT}`);
+    console.log(`Jeoparty server running at http://localhost:${PORT}`);
   });
 });

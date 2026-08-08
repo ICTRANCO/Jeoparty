@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jeopardy Admin</title>
+<title>Jeoparty Admin</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,6 +13,20 @@
 </div>
 
 <div class="admin-wrap">
+
+  <div class="panel">
+    <h2>Game Title</h2>
+    <div class="field-row">
+      <div class="field" style="flex: 1 1 300px;">
+        <label for="game-title-input">Displayed on the board page</label>
+        <input type="text" id="game-title-input" placeholder="JEOPARTY!" maxlength="60" />
+      </div>
+      <div class="field" style="flex: 0 0 auto; justify-content: flex-end;">
+        <button class="btn" id="save-title-btn">Save Title</button>
+      </div>
+    </div>
+    <div class="status-msg" id="title-status"></div>
+  </div>
 
   <div class="panel">
     <h2>Categories</h2>
@@ -31,8 +45,8 @@
     </div>
     <div class="field-row">
       <div class="field" style="flex: 1 1 300px;">
-        <label for="api-key">Anthropic API key</label>
-        <input type="password" id="api-key" placeholder="sk-ant-..." />
+        <label for="api-key">OpenAI API key</label>
+        <input type="password" id="api-key" placeholder="sk-..." />
       </div>
       <div class="field" style="flex: 0 0 auto; justify-content: flex-end; flex-direction: row; gap: 8px; align-items: center;">
         <button class="btn secondary" id="save-key-btn">Save Key</button>
@@ -41,7 +55,7 @@
     </div>
     <div class="status-msg" id="key-status"></div>
     <p style="font-size: 0.8rem; color: #b8b9e8;">
-      Your key is stored only in a local file on this machine (<code>data/config.json</code>) and used server-side to call Anthropic — it is never sent back to the browser.
+      Your key is stored only in a local file on this machine (<code>data/config.json</code>) and used server-side to call OpenAI — it is never sent back to the browser.
     </p>
     <button class="btn" id="generate-btn">Generate All 30 Questions</button>
     <div class="status-msg" id="generate-status"></div>
