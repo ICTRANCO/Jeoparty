@@ -126,14 +126,14 @@
       "points": 200,
       "clue": "This superhero has a shield and is known as Captain America.",
       "answer": "Captain America",
-      "used": true
+      "used": false
     },
     {
       "catIndex": 3,
       "points": 300,
       "clue": "This superhero can control thunder and lightning.",
       "answer": "Thor",
-      "used": true
+      "used": false
     },
     {
       "catIndex": 3,
@@ -223,11 +223,11 @@
   "teams": [
     {
       "name": "Team 1",
-      "score": -200
+      "score": 0
     },
     {
       "name": "Team 2",
-      "score": 200
+      "score": 0
     },
     {
       "name": "Team 3",

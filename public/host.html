@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jeoparty Host View</title>
+<link rel="stylesheet" href="styles.css?v=4" />
+</head>
+<body class="host-page">
+  <header class="host-header">
+    <div>
+      <div class="host-eyebrow">Host answer view</div>
+      <h1 id="host-game-title">JEOPARTY!</h1>
+    </div>
+    <div class="host-connection" id="host-connection">Connecting…</div>
+  </header>
+
+  <main class="host-view">
+    <section class="host-empty" id="host-empty">
+      <div class="host-empty-icon">?</div>
+      <h2>Waiting for a question</h2>
+      <p>Choose a value on the gameboard. The clue and answer will appear here automatically.</p>
+    </section>
+
+    <article class="host-question hidden" id="host-question" aria-live="polite">
+      <div class="host-question-meta">
+        <span id="host-category"></span>
+        <span class="host-points" id="host-points"></span>
+      </div>
+      <section class="host-card host-clue-card">
+        <div class="host-card-label">Question</div>
+        <div class="host-clue" id="host-clue"></div>
+      </section>
+      <section class="host-card host-answer-card">
+        <div class="host-card-label">Answer</div>
+        <div class="host-answer" id="host-answer"></div>
+      </section>
+    </article>
+  </main>
+
+  <script src="host.js?v=1"></script>
+</body>
+</html>

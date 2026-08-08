@@ -14,6 +14,10 @@ const NUM_CATEGORIES = 6;
 const NUM_TEAMS = 3;
 const MODEL = 'gpt-4o-mini';
 
+let currentQuestion = null;
+let currentQuestionRevision = 0;
+const hostViewClients = new Set();
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -77,6 +81,15 @@ function cellFor(board, catIndex, points) {
   return board.cells.find((c) => c.catIndex === catIndex && c.points === points);
 }
 
+function hostViewState() {
+  return { revision: currentQuestionRevision, question: currentQuestion };
+}
+
+function notifyHostViews() {
+  const message = `data: ${JSON.stringify(hostViewState())}\n\n`;
+  hostViewClients.forEach((client) => client.write(message));
+}
+
 // ---- Board ----
 
 app.get('/api/board', async (req, res) => {
@@ -124,11 +137,61 @@ app.post('/api/board/reveal', async (req, res) => {
   res.json(cell);
 });
 
+// ---- Host answer view ----
+
+app.get('/api/host/question', (req, res) => {
+  res.json(hostViewState());
+});
+
+app.get('/api/host/events', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  res.flushHeaders();
+  hostViewClients.add(res);
+  res.write(`data: ${JSON.stringify(hostViewState())}\n\n`);
+
+  req.on('close', () => {
+    hostViewClients.delete(res);
+  });
+});
+
+app.post('/api/host/question', async (req, res) => {
+  const catIndex = Number(req.body.catIndex);
+  const points = Number(req.body.points);
+  const board = await readBoard();
+  const cell = cellFor(board, catIndex, points);
+  if (!cell) return res.status(404).json({ error: 'cell not found' });
+
+  currentQuestion = {
+    catIndex,
+    category: board.categories[catIndex] || `Category ${catIndex + 1}`,
+    points,
+    clue: cell.clue || '',
+    answer: cell.answer || '',
+  };
+  currentQuestionRevision += 1;
+  notifyHostViews();
+  res.json(hostViewState());
+});
+
+app.delete('/api/host/question', (req, res) => {
+  currentQuestion = null;
+  currentQuestionRevision += 1;
+  notifyHostViews();
+  res.json(hostViewState());
+});
+
 app.post('/api/board/reset', async (req, res) => {
   const board = await readBoard();
   board.cells.forEach((c) => (c.used = false));
   board.teams.forEach((t) => (t.score = 0));
   await writeBoard(board);
+  currentQuestion = null;
+  currentQuestionRevision += 1;
+  notifyHostViews();
   res.json(board);
 });
 

@@ -278,10 +278,24 @@ async function applyScore(teamIndex, correct) {
   }, 700);
 }
 
+async function publishHostQuestion(catIndex, points) {
+  try {
+    const res = await fetch('/api/host/question', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ catIndex, points }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  } catch (err) {
+    console.error('Could not update the host answer view', err);
+  }
+}
+
 function openCell(catIndex, points) {
   const cell = cellFor(catIndex, points);
   if (!cell) return;
   activeCell = cell;
+  publishHostQuestion(catIndex, points);
   disabledTeamsForQuestion.clear();
   buzzersEnabled = false;
   resetBuzzers();
