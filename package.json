@@ -6,10 +6,19 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "cf:dev": "wrangler dev",
+    "cf:types": "wrangler types",
+    "cf:deploy": "wrangler deploy"
   },
   "dependencies": {
     "express": "^4.19.2",
     "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "@types/node": "latest",
+    "typescript": "latest",
+    "wrangler": "latest"
   }
 }

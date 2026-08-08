@@ -1,6 +1,8 @@
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const http = require('http');
+const { WebSocketServer, WebSocket } = require('ws');
 
 const app = express();
 const PORT = process.env.PORT || 3131;
@@ -17,6 +19,7 @@ const MODEL = 'gpt-4o-mini';
 let currentQuestion = null;
 let currentQuestionRevision = 0;
 const hostViewClients = new Set();
+const realtimeClients = new Set();
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -86,8 +89,18 @@ function hostViewState() {
 }
 
 function notifyHostViews() {
-  const message = `data: ${JSON.stringify(hostViewState())}\n\n`;
-  hostViewClients.forEach((client) => client.write(message));
+  const state = JSON.stringify(hostViewState());
+  hostViewClients.forEach((client) => client.write(`data: ${state}\n\n`));
+  realtimeClients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) client.send(state);
+  });
+}
+
+function broadcastRealtime(message) {
+  const payload = JSON.stringify(message);
+  realtimeClients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  });
 }
 
 // ---- Board ----
@@ -351,7 +364,26 @@ app.post('/api/generate', async (req, res) => {
 });
 
 ensureDataFiles().then(() => {
-  app.listen(PORT, () => {
+  const server = http.createServer(app);
+  const realtimeServer = new WebSocketServer({ server, path: '/api/host/events' });
+
+  realtimeServer.on('connection', (socket) => {
+    realtimeClients.add(socket);
+    socket.send(JSON.stringify(hostViewState()));
+    socket.on('message', (rawMessage) => {
+      try {
+        const message = JSON.parse(rawMessage.toString());
+        if (message.type === 'start-buzzers') {
+          broadcastRealtime({ type: 'buzzers-ready', sentAt: Date.now() });
+        } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'close-question'].includes(message.type)) {
+          broadcastRealtime({ type: message.type, sentAt: Date.now() });
+        }
+      } catch {}
+    });
+    socket.on('close', () => realtimeClients.delete(socket));
+  });
+
+  server.listen(PORT, () => {
     console.log(`Jeoparty server running at http://localhost:${PORT}`);
   });
 });

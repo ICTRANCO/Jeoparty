@@ -427,7 +427,7 @@ body {
 
 .overlay-controls {
   position: relative;
-  display: flex;
+  display: none;
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
@@ -658,6 +658,15 @@ textarea {
 .host-clue { font-size: clamp(1.6rem, 4vw, 3rem); font-weight: bold; }
 .host-answer { color: var(--gold); font-size: clamp(1.45rem, 3vw, 2.3rem); font-weight: bold; }
 .host-question-updated { animation: host-question-in 0.3s ease-out; }
+.host-remote-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.host-remote-btn { border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 10px; padding: 13px 20px; background: rgba(255, 255, 255, 0.14); color: var(--white); font: inherit; font-weight: bold; cursor: pointer; }
+.host-remote-btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.host-remote-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.host-buzzers-btn, .host-reveal-btn { background: var(--gold); color: var(--ink); border-color: transparent; }
+.host-correct-btn { background: #2ecc71; color: #063a1c; border-color: transparent; }
+.host-incorrect-btn { background: #e94560; color: var(--white); border-color: transparent; }
+.host-buzzers-btn.active { background: #73e6a2; box-shadow: 0 8px 24px rgba(115, 230, 162, 0.2); }
+.host-command-status { min-height: 1.3em; margin-top: 12px; color: #cbd0ff; font-size: 0.9rem; }
 
 @keyframes host-question-in {
   from { opacity: 0.35; transform: translateY(8px); }

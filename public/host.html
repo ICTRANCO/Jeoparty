@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jeoparty Host View</title>
-<link rel="stylesheet" href="styles.css?v=4" />
+<link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body class="host-page">
   <header class="host-header">
@@ -35,9 +35,17 @@
         <div class="host-card-label">Answer</div>
         <div class="host-answer" id="host-answer"></div>
       </section>
+      <div class="host-remote-controls">
+        <button class="host-remote-btn host-buzzers-btn" id="host-buzzers-btn" data-command="start-buzzers" disabled>Buzzers Ready</button>
+        <button class="host-remote-btn host-reveal-btn" data-command="reveal-answer" disabled>Reveal Answer</button>
+        <button class="host-remote-btn host-correct-btn" data-command="score-correct" disabled>✓ Correct</button>
+        <button class="host-remote-btn host-incorrect-btn" data-command="score-incorrect" disabled>✕ Incorrect</button>
+        <button class="host-remote-btn host-close-btn" data-command="close-question" disabled>Close</button>
+      </div>
+      <div class="host-command-status" id="host-command-status" aria-live="polite"></div>
     </article>
   </main>
 
-  <script src="host.js?v=1"></script>
+  <script src="host.js?v=3"></script>
 </body>
 </html>

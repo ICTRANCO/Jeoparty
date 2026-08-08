@@ -26,6 +26,36 @@ let activeCell = null;
 let disabledTeamsForQuestion = new Set();
 let buzzerWinner = null;
 let buzzersEnabled = false;
+let remoteSocket = null;
+let remoteReconnectTimer = null;
+
+function connectRemoteControls() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  remoteSocket = new WebSocket(`${protocol}//${location.host}/api/host/events`);
+  remoteSocket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    if (!activeCell) return;
+
+    if (message.type === 'buzzers-ready') {
+      buzzersEnabled = true;
+      updateHostButtonState();
+      updateBuzzerStatus('Buzzers are live');
+      renderScoringControls();
+    } else if (message.type === 'reveal-answer') {
+      revealAnswerBtn.click();
+    } else if (message.type === 'score-correct' && buzzerWinner !== null) {
+      applyScore(buzzerWinner, true);
+    } else if (message.type === 'score-incorrect' && buzzerWinner !== null) {
+      applyScore(buzzerWinner, false);
+    } else if (message.type === 'close-question') {
+      closeOverlay();
+    }
+  });
+  remoteSocket.addEventListener('close', () => {
+    clearTimeout(remoteReconnectTimer);
+    remoteReconnectTimer = setTimeout(connectRemoteControls, 1500);
+  });
+}
 
 async function loadBoard() {
   const res = await fetch('/api/board');
@@ -395,3 +425,4 @@ resetBtn.addEventListener('click', async () => {
 
 loadBoard();
 updateHostButtonState();
+connectRemoteControls();
