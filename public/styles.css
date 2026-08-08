@@ -406,6 +406,15 @@ body {
 .overlay.hidden {
   display: none;
 }
+.question-timer { position: absolute; z-index: 20; top: 0; left: 0; width: 100%; height: 14px; padding: 2px 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.question-timer.hidden { display: none; }
+.question-timer-fill { display: flex; width: 100%; height: 100%; gap: clamp(2px, 0.35vw, 6px); }
+.question-timer-chunk { flex: 1 1 0; min-width: 1px; border-radius: 2px; background: var(--white); opacity: 1; transform: scaleY(1); transition: opacity 0.16s ease, transform 0.16s ease; }
+.question-timer-chunk.gone { opacity: 0; transform: scaleY(0); }
+.question-timer.times-up { height: 16px; background: rgba(233, 69, 96, 0.5); }
+.question-back-btn { position: absolute; z-index: 30; top: 28px; left: 22px; display: grid; place-items: center; width: 48px; height: 44px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; background: rgba(125, 130, 150, 0.28); color: rgba(255, 255, 255, 0.58); font-size: 1.8rem; line-height: 1; cursor: pointer; }
+.question-back-btn:hover { background: rgba(145, 150, 170, 0.42); color: rgba(255, 255, 255, 0.82); }
+.question-back-btn:focus-visible { outline: 3px solid rgba(255, 255, 255, 0.65); outline-offset: 3px; }
 
 .review-badge {
   position: absolute;

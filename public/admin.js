@@ -7,6 +7,10 @@ const titleStatus = document.getElementById('title-status');
 const categoryInputsEl = document.getElementById('category-inputs');
 const saveCategoriesBtn = document.getElementById('save-categories-btn');
 const categoryStatus = document.getElementById('category-status');
+const questionTimerInput = document.getElementById('question-timer');
+const buzzTimerInput = document.getElementById('buzz-timer');
+const saveTimersBtn = document.getElementById('save-timers-btn');
+const timerStatus = document.getElementById('timer-status');
 
 const ageGroupInput = document.getElementById('age-group');
 const apiKeyInput = document.getElementById('api-key');
@@ -30,6 +34,8 @@ async function loadBoard() {
   board = await res.json();
   gameTitleInput.value = board.gameTitle || '';
   ageGroupInput.value = board.ageGroup || '';
+  questionTimerInput.value = board.questionTimerSeconds === null ? 'none' : String(board.questionTimerSeconds ?? 5);
+  buzzTimerInput.value = board.buzzTimerSeconds === null ? 'none' : String(board.buzzTimerSeconds ?? 5);
   renderCategoryInputs();
   renderQaTable();
 }
@@ -187,6 +193,28 @@ saveCategoriesBtn.addEventListener('click', async () => {
     setStatus(categoryStatus, err.message, 'error');
   } finally {
     saveCategoriesBtn.disabled = false;
+  }
+});
+
+saveTimersBtn.addEventListener('click', async () => {
+  const timerValue = (input) => input.value === 'none' ? null : Number(input.value);
+  saveTimersBtn.disabled = true;
+  try {
+    const res = await fetch('/api/board/timers', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        questionTimerSeconds: timerValue(questionTimerInput),
+        buzzTimerSeconds: timerValue(buzzTimerInput),
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    board = await res.json();
+    setStatus(timerStatus, 'Timer settings saved.', 'ok');
+  } catch (err) {
+    setStatus(timerStatus, err.message, 'error');
+  } finally {
+    saveTimersBtn.disabled = false;
   }
 });
 

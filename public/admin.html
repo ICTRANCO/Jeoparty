@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jeoparty Admin</title>
-<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="styles.css?v=16" />
 </head>
 <body>
 <div class="topbar">
@@ -33,6 +33,40 @@
     <div class="field-row" id="category-inputs"></div>
     <button class="btn" id="save-categories-btn">Save Categories</button>
     <div class="status-msg" id="category-status"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Question Timers</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="question-timer">Time to buzz</label>
+        <select id="question-timer">
+          <option value="none">No timer</option>
+          <option value="3">3 seconds</option>
+          <option value="5">5 seconds</option>
+          <option value="10">10 seconds</option>
+          <option value="15">15 seconds</option>
+          <option value="20">20 seconds</option>
+          <option value="30">30 seconds</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="buzz-timer">Time to answer after buzzing</label>
+        <select id="buzz-timer">
+          <option value="none">No timer</option>
+          <option value="3">3 seconds</option>
+          <option value="5">5 seconds</option>
+          <option value="10">10 seconds</option>
+          <option value="15">15 seconds</option>
+          <option value="20">20 seconds</option>
+          <option value="30">30 seconds</option>
+        </select>
+      </div>
+      <div class="field" style="flex: 0 0 auto; justify-content: flex-end;">
+        <button class="btn" id="save-timers-btn">Save Timers</button>
+      </div>
+    </div>
+    <div class="status-msg" id="timer-status"></div>
   </div>
 
   <div class="panel">
@@ -71,6 +105,6 @@
 
 </div>
 
-<script src="admin.js"></script>
+<script src="admin.js?v=2"></script>
 </body>
 </html>

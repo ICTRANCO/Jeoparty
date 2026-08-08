@@ -18,6 +18,8 @@ function normalizedBoard(value: Board): Board {
     board.teams = Array.from({ length: 3 }, (_, index) => ({ name: `Team ${index + 1}`, score: 0 }));
   }
   board.gameTitle = String(board.gameTitle || '').trim() || DEFAULT_GAME_TITLE;
+  if (board.questionTimerSeconds === undefined) board.questionTimerSeconds = 5;
+  if (board.buzzTimerSeconds === undefined) board.buzzTimerSeconds = 5;
   if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex as number]) board.chooserTeamIndex = null;
   delete (board as Board & { scoreHistory?: unknown[] }).scoreHistory;
   return board;
@@ -165,6 +167,19 @@ export class GameRoom extends DurableObject<Env> {
         const body = await request.json<{ categories?: unknown }>();
         if (!Array.isArray(body.categories) || body.categories.length !== 6) return json({ error: 'categories must be an array of 6 strings' }, 400);
         this.board.categories = body.categories.map((category) => String(category || '').slice(0, 60));
+        await this.ctx.storage.put('board', this.board);
+        return json(this.board);
+      }
+
+      if (url.pathname === '/api/board/timers' && method === 'PUT') {
+        const body = await request.json<{ questionTimerSeconds?: number | null; buzzTimerSeconds?: number | null }>();
+        const normalizeTimer = (value: number | null | undefined) => value === null ? null : Number(value);
+        const questionTimerSeconds = normalizeTimer(body.questionTimerSeconds);
+        const buzzTimerSeconds = normalizeTimer(body.buzzTimerSeconds);
+        const valid = (value: number | null) => value === null || (Number.isFinite(value) && value >= 1 && value <= 120);
+        if (!valid(questionTimerSeconds) || !valid(buzzTimerSeconds)) return json({ error: 'Timers must be between 1 and 120 seconds, or disabled' }, 400);
+        this.board.questionTimerSeconds = questionTimerSeconds;
+        this.board.buzzTimerSeconds = buzzTimerSeconds;
         await this.ctx.storage.put('board', this.board);
         return json(this.board);
       }
@@ -325,7 +340,7 @@ export default {
 
 interface Cell { catIndex: number; points: number; clue: string; answer: string; used: boolean }
 interface Team { name: string; score: number }
-interface Board { gameTitle: string; categories: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null }
+interface Board { gameTitle: string; categories: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null; questionTimerSeconds: number | null; buzzTimerSeconds: number | null }
 interface GameConfig { apiKey: string }
 interface HostQuestion { catIndex: number; category: string; points: number; clue: string; answer: string }
 interface HostBuzzer { teamIndex: number; teamName: string }

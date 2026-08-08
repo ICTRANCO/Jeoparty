@@ -18,6 +18,9 @@ const buzzerStatusEl = document.getElementById('buzzer-status');
 const buzzerOverlayEl = document.getElementById('buzzer-overlay');
 const buzzerResetBtn = document.getElementById('buzzer-reset-btn');
 const teamBuzzChipsEl = document.getElementById('team-buzz-chips');
+const questionBackBtn = document.getElementById('question-back-btn');
+const questionTimerBar = document.getElementById('question-timer-bar');
+const questionTimerFill = document.getElementById('question-timer-fill');
 
 let hostStartBtn = null;
 
@@ -28,6 +31,129 @@ let buzzerWinner = null;
 let buzzersEnabled = false;
 let remoteSocket = null;
 let remoteReconnectTimer = null;
+let audioContext = null;
+let questionLocked = false;
+let timerTimeout = null;
+let timerGeneration = 0;
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioContext) audioContext = new AudioContextClass();
+  if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+  return audioContext;
+}
+
+function playTone(frequency, start, duration, type, volume, endFrequency = frequency) {
+  const context = getAudioContext();
+  if (!context) return;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const beginsAt = context.currentTime + start;
+  const endsAt = beginsAt + duration;
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, beginsAt);
+  oscillator.frequency.exponentialRampToValueAtTime(endFrequency, endsAt);
+  gain.gain.setValueAtTime(0.0001, beginsAt);
+  gain.gain.exponentialRampToValueAtTime(volume, beginsAt + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, endsAt);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(beginsAt);
+  oscillator.stop(endsAt);
+}
+
+function playAnswerSound(correct) {
+  if (correct) {
+    playTone(784, 0, 0.22, 'sine', 0.24);
+    playTone(1174.66, 0.18, 0.5, 'sine', 0.28);
+  } else {
+    playTone(180, 0, 0.65, 'sawtooth', 0.18, 85);
+    playTone(120, 0.04, 0.6, 'square', 0.07, 65);
+  }
+}
+
+function playTimesUpSound() {
+  playTone(440, 0, 0.16, 'square', 0.13, 330);
+  playTone(330, 0.2, 0.16, 'square', 0.13, 247);
+  playTone(220, 0.4, 0.45, 'sawtooth', 0.16, 110);
+}
+
+function playBuzzInSound() {
+  playTone(523.25, 0, 0.12, 'square', 0.11);
+  playTone(783.99, 0.1, 0.24, 'sine', 0.22);
+}
+
+function stopQuestionTimer(hide = true) {
+  timerGeneration += 1;
+  clearInterval(timerTimeout);
+  timerTimeout = null;
+  questionTimerFill.innerHTML = '';
+  questionTimerBar.classList.toggle('hidden', hide);
+  if (hide) questionTimerBar.classList.remove('times-up');
+}
+
+function revealCurrentAnswer() {
+  if (!activeCell) return;
+  answerText.textContent = activeCell.answer && activeCell.answer.trim()
+    ? activeCell.answer
+    : '(No answer set)';
+  answerText.style.visibility = 'visible';
+  revealAnswerBtn.disabled = true;
+  revealAnswerBtn.textContent = 'Answer Shown';
+}
+
+function lockQuestionForTimeout() {
+  if (!activeCell || questionLocked) return;
+  questionLocked = true;
+  buzzersEnabled = false;
+  playTimesUpSound();
+  revealCurrentAnswer();
+  updateBuzzerStatus("Time's up!");
+  questionTimerBar.classList.remove('hidden');
+  questionTimerBar.classList.add('times-up');
+  questionTimerFill.querySelectorAll('.question-timer-chunk').forEach((chunk) => chunk.classList.add('gone'));
+  renderTeamBuzzChips();
+  renderScoringControls();
+}
+
+function startQuestionTimer(seconds) {
+  stopQuestionTimer(false);
+  if (seconds === null || seconds === undefined) {
+    questionTimerBar.classList.add('hidden');
+    return;
+  }
+  const duration = Math.max(1, Math.round(Number(seconds)));
+  if (!Number.isFinite(duration)) return;
+  const generation = timerGeneration;
+  questionTimerBar.classList.remove('hidden', 'times-up');
+  const chunkCount = duration * 2 - 1;
+  for (let index = 0; index < chunkCount; index += 1) {
+    const chunk = document.createElement('span');
+    chunk.className = 'question-timer-chunk';
+    questionTimerFill.appendChild(chunk);
+  }
+
+  let elapsed = 0;
+  timerTimeout = setInterval(() => {
+    if (generation !== timerGeneration) return;
+    elapsed += 1;
+    const chunks = questionTimerFill.children;
+    const leftIndex = elapsed - 1;
+    const rightIndex = chunks.length - elapsed;
+    chunks[leftIndex]?.classList.add('gone');
+    chunks[rightIndex]?.classList.add('gone');
+    if (elapsed >= duration) {
+      clearInterval(timerTimeout);
+      timerTimeout = null;
+      lockQuestionForTimeout();
+    }
+  }, 1000);
+}
+
+window.addEventListener('pointerdown', getAudioContext, { once: true });
+window.addEventListener('keydown', getAudioContext, { once: true });
 
 function sendRealtime(message) {
   if (remoteSocket?.readyState === WebSocket.OPEN) {
@@ -47,7 +173,9 @@ function connectRemoteControls() {
     if (!activeCell) return;
 
     if (message.type === 'buzzers-ready') {
+      if (questionLocked) return;
       buzzersEnabled = true;
+      startQuestionTimer(board.questionTimerSeconds);
       updateHostButtonState();
       updateBuzzerStatus('Buzzers are live');
       renderTeamBuzzChips();
@@ -175,16 +303,21 @@ function renderTeamBuzzChips() {
   });
 }
 
-function resetBuzzers() {
+function resetBuzzers(restartTimer = false) {
   buzzerWinner = null;
   sendRealtime({ type: 'buzzer-state', teamIndex: null });
   updateBuzzerStatus('Waiting for a buzz');
   renderTeamBuzzChips();
   renderScoringControls();
+  if (restartTimer && activeCell && buzzersEnabled && !questionLocked) {
+    startQuestionTimer(board.questionTimerSeconds);
+  }
 }
 
 function setBuzzWinner(teamIndex) {
   buzzerWinner = teamIndex;
+  playBuzzInSound();
+  startQuestionTimer(board.buzzTimerSeconds);
   sendRealtime({ type: 'buzzer-state', teamIndex, teamName: board.teams[teamIndex].name });
   updateBuzzerStatus(`${board.teams[teamIndex].name} buzzed first`);
   renderTeamBuzzChips();
@@ -192,7 +325,7 @@ function setBuzzWinner(teamIndex) {
 }
 
 function handleBuzz(teamIndex) {
-  if (!activeCell) return;
+  if (!activeCell || questionLocked) return;
   if (!buzzersEnabled) {
     updateBuzzerStatus('Waiting for a buzz');
     return;
@@ -258,22 +391,23 @@ function renderScoringControls() {
   const correctBtn = document.createElement('button');
   correctBtn.className = 'score-btn correct';
   correctBtn.textContent = '✓ Correct';
-  correctBtn.disabled = buzzerWinner === null;
+  correctBtn.disabled = questionLocked || buzzerWinner === null;
   correctBtn.addEventListener('click', () => applyScore(buzzerWinner, true));
 
   const incorrectBtn = document.createElement('button');
   incorrectBtn.className = 'score-btn incorrect';
   incorrectBtn.textContent = '✗ Incorrect';
-  incorrectBtn.disabled = buzzerWinner === null;
+  incorrectBtn.disabled = questionLocked || buzzerWinner === null;
   incorrectBtn.addEventListener('click', () => applyScore(buzzerWinner, false));
 
   const hostBtn = document.createElement('button');
   hostBtn.className = 'btn-link host-btn';
   hostBtn.id = 'host-start-btn';
   hostBtn.textContent = buzzersEnabled ? 'Buzzers Ready' : 'Start Buzzers';
-  hostBtn.disabled = !activeCell;
+  hostBtn.disabled = !activeCell || questionLocked;
   hostBtn.addEventListener('click', () => {
     buzzersEnabled = true;
+    startQuestionTimer(board.questionTimerSeconds);
     updateHostButtonState();
     updateBuzzerStatus('Buzzers are live');
     renderTeamBuzzChips();
@@ -290,7 +424,7 @@ function renderScoringControls() {
 }
 
 async function applyScore(teamIndex, correct) {
-  if (!activeCell || teamIndex === null || teamIndex === undefined) return;
+  if (!activeCell || questionLocked || teamIndex === null || teamIndex === undefined) return;
 
   const res = await fetch('/api/board/score', {
     method: 'POST',
@@ -304,6 +438,8 @@ async function applyScore(teamIndex, correct) {
   }
 
   board = await res.json();
+  stopQuestionTimer();
+  playAnswerSound(correct);
   renderScoreboard();
   render();
 
@@ -312,10 +448,16 @@ async function applyScore(teamIndex, correct) {
     showTeamScoreFlash(teamIndex, -activeCell.points);
     setTimeout(() => {
       disabledTeamsForQuestion.add(teamIndex);
-      buzzerWinner = null;
+      resetBuzzers();
+      const everyTeamMissed = board.teams.every((_, index) => disabledTeamsForQuestion.has(index));
+      if (everyTeamMissed) {
+        lockQuestionForTimeout();
+        return;
+      }
       updateBuzzerStatus(`${teamName} missed; waiting for the next buzz`);
       renderTeamBuzzChips();
       renderScoringControls();
+      startQuestionTimer(board.questionTimerSeconds);
     }, 1300);
     return;
   }
@@ -344,6 +486,8 @@ function openCell(catIndex, points) {
   const cell = cellFor(catIndex, points);
   if (!cell) return;
   activeCell = cell;
+  questionLocked = false;
+  stopQuestionTimer();
   publishHostQuestion(catIndex, points);
   disabledTeamsForQuestion.clear();
   buzzersEnabled = false;
@@ -383,14 +527,12 @@ function openCell(catIndex, points) {
 }
 
 revealAnswerBtn.addEventListener('click', () => {
-  if (!activeCell) return;
-  answerText.textContent = activeCell.answer && activeCell.answer.trim()
-    ? activeCell.answer
-    : '(No answer set)';
-  answerText.style.visibility = 'visible';
+  stopQuestionTimer();
+  revealCurrentAnswer();
 });
 
 async function closeOverlay() {
+  stopQuestionTimer();
   if (activeCell && !activeCell.used) {
     await fetch('/api/board/reveal', {
       method: 'POST',
@@ -403,6 +545,7 @@ async function closeOverlay() {
   overlay.classList.add('hidden');
   flipCard.classList.remove('flipped');
   activeCell = null;
+  questionLocked = false;
   disabledTeamsForQuestion.clear();
   buzzersEnabled = false;
   updateHostButtonState();
@@ -411,6 +554,21 @@ async function closeOverlay() {
 }
 
 closeBtn.addEventListener('click', closeOverlay);
+
+questionBackBtn.addEventListener('click', async () => {
+  stopQuestionTimer();
+  overlay.classList.add('hidden');
+  flipCard.classList.remove('flipped');
+  reviewBadge.classList.add('hidden');
+  activeCell = null;
+  questionLocked = false;
+  disabledTeamsForQuestion.clear();
+  buzzersEnabled = false;
+  updateHostButtonState();
+  resetBuzzers();
+  await fetch('/api/host/question', { method: 'DELETE' }).catch(() => {});
+  await loadBoard();
+});
 
 window.addEventListener('keydown', (event) => {
   if (!activeCell) return;
@@ -430,7 +588,7 @@ window.addEventListener('keydown', (event) => {
   handleBuzz(teamIndex);
 });
 
-buzzerResetBtn.addEventListener('click', resetBuzzers);
+buzzerResetBtn.addEventListener('click', () => resetBuzzers(true));
 
 resetBtn.addEventListener('click', async () => {
   if (!confirm('Start a new game? This clears which squares have been played and resets scores to 0 (questions and team names stay the same).')) return;

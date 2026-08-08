@@ -40,7 +40,7 @@ function defaultBoard() {
       cells.push({ catIndex: c, points, clue: '', answer: '', used: false });
     }
   }
-  return { gameTitle: DEFAULT_GAME_TITLE, categories, ageGroup: '', cells, teams: defaultTeams() };
+  return { gameTitle: DEFAULT_GAME_TITLE, categories, ageGroup: '', cells, teams: defaultTeams(), questionTimerSeconds: 5, buzzTimerSeconds: 5 };
 }
 
 async function ensureDataFiles() {
@@ -69,6 +69,10 @@ async function readBoard() {
   if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex]) {
     board.chooserTeamIndex = null;
   }
+  if (board.questionTimerSeconds !== null && !Number.isFinite(board.questionTimerSeconds)) board.questionTimerSeconds = 5;
+  if (board.buzzTimerSeconds !== null && !Number.isFinite(board.buzzTimerSeconds)) board.buzzTimerSeconds = 5;
+  if (board.questionTimerSeconds === undefined) board.questionTimerSeconds = 5;
+  if (board.buzzTimerSeconds === undefined) board.buzzTimerSeconds = 5;
   delete board.scoreHistory;
   return board;
 }
@@ -131,6 +135,21 @@ app.put('/api/board/categories', async (req, res) => {
   }
   const board = await readBoard();
   board.categories = categories.map((c) => String(c || '').slice(0, 60));
+  await writeBoard(board);
+  res.json(board);
+});
+
+app.put('/api/board/timers', async (req, res) => {
+  const normalizeTimer = (value) => value === null ? null : Number(value);
+  const questionTimerSeconds = normalizeTimer(req.body.questionTimerSeconds);
+  const buzzTimerSeconds = normalizeTimer(req.body.buzzTimerSeconds);
+  const valid = (value) => value === null || (Number.isFinite(value) && value >= 1 && value <= 120);
+  if (!valid(questionTimerSeconds) || !valid(buzzTimerSeconds)) {
+    return res.status(400).json({ error: 'Timers must be between 1 and 120 seconds, or disabled' });
+  }
+  const board = await readBoard();
+  board.questionTimerSeconds = questionTimerSeconds;
+  board.buzzTimerSeconds = buzzTimerSeconds;
   await writeBoard(board);
   res.json(board);
 });

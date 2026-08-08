@@ -235,5 +235,7 @@
     }
   ],
   "gameTitle": "JEOPARTY!",
-  "chooserTeamIndex": null
+  "chooserTeamIndex": null,
+  "questionTimerSeconds": 5,
+  "buzzTimerSeconds": 5
 }
