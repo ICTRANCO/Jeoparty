@@ -1,0 +1,223 @@
+{
+  "categories": [
+    "Science",
+    "Category 2",
+    "Category 3",
+    "Category 4",
+    "Category 5",
+    "Category 6"
+  ],
+  "ageGroup": "",
+  "cells": [
+    {
+      "catIndex": 0,
+      "points": 100,
+      "clue": "This gas makes up about 78% of Earth's atmosphere.",
+      "answer": "Nitrogen",
+      "used": false
+    },
+    {
+      "catIndex": 0,
+      "points": 200,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 0,
+      "points": 300,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 0,
+      "points": 400,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 0,
+      "points": 500,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 1,
+      "points": 100,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 1,
+      "points": 200,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 1,
+      "points": 300,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 1,
+      "points": 400,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 1,
+      "points": 500,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 2,
+      "points": 100,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 2,
+      "points": 200,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 2,
+      "points": 300,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 2,
+      "points": 400,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 2,
+      "points": 500,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 3,
+      "points": 100,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 3,
+      "points": 200,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 3,
+      "points": 300,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 3,
+      "points": 400,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 3,
+      "points": 500,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 4,
+      "points": 100,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 4,
+      "points": 200,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 4,
+      "points": 300,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 4,
+      "points": 400,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 4,
+      "points": 500,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 5,
+      "points": 100,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 5,
+      "points": 200,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 5,
+      "points": 300,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 5,
+      "points": 400,
+      "clue": "",
+      "answer": "",
+      "used": false
+    },
+    {
+      "catIndex": 5,
+      "points": 500,
+      "clue": "",
+      "answer": "",
+      "used": false
+    }
+  ]
+}

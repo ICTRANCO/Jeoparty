@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jeopardy Admin</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="topbar">
+  <h1>⚙️ Admin</h1>
+  <a href="index.html">← Back to Board</a>
+</div>
+
+<div class="admin-wrap">
+
+  <div class="panel">
+    <h2>Categories</h2>
+    <div class="field-row" id="category-inputs"></div>
+    <button class="btn" id="save-categories-btn">Save Categories</button>
+    <div class="status-msg" id="category-status"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Generate Questions with AI</h2>
+    <div class="field-row">
+      <div class="field" style="flex: 1 1 300px;">
+        <label for="age-group">Age group / audience</label>
+        <input type="text" id="age-group" placeholder="e.g. 8-10 year olds, high schoolers, trivia adults..." />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex: 1 1 300px;">
+        <label for="api-key">Anthropic API key</label>
+        <input type="password" id="api-key" placeholder="sk-ant-..." />
+      </div>
+      <div class="field" style="flex: 0 0 auto; justify-content: flex-end; flex-direction: row; gap: 8px; align-items: center;">
+        <button class="btn secondary" id="save-key-btn">Save Key</button>
+        <button class="btn danger" id="clear-key-btn">Clear Key</button>
+      </div>
+    </div>
+    <div class="status-msg" id="key-status"></div>
+    <p style="font-size: 0.8rem; color: #b8b9e8;">
+      Your key is stored only in a local file on this machine (<code>data/config.json</code>) and used server-side to call Anthropic — it is never sent back to the browser.
+    </p>
+    <button class="btn" id="generate-btn">Generate All 30 Questions</button>
+    <div class="status-msg" id="generate-status"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Questions &amp; Answers</h2>
+    <p style="font-size: 0.85rem; color: #b8b9e8;">Edit any clue or answer, then click Save Question for that cell.</p>
+    <div style="overflow-x: auto;">
+      <table class="category-table" id="qa-table"></table>
+    </div>
+  </div>
+
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
