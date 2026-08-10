@@ -34,6 +34,23 @@ body {
   text-shadow: 2px 2px 0 #000;
 }
 
+#game-title {
+  font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
+  font-size: clamp(1.65rem, 3.2vw, 2.65rem);
+  font-weight: 900;
+  letter-spacing: 0.075em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #ffe45c;
+  -webkit-text-stroke: 1px #9f6500;
+  text-shadow:
+    1px 1px 0 #d69500,
+    2px 2px 0 #b97900,
+    3px 3px 0 #925c00,
+    4px 4px 0 #684100,
+    7px 9px 8px rgba(0, 0, 0, 0.72);
+}
+
 .topbar a, .btn-link {
   color: var(--white);
   text-decoration: none;

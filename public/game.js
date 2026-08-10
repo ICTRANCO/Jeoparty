@@ -16,7 +16,6 @@ const reviewBadge = document.getElementById('review-badge');
 const gameTitleEl = document.getElementById('game-title');
 const buzzerStatusEl = document.getElementById('buzzer-status');
 const buzzerOverlayEl = document.getElementById('buzzer-overlay');
-const buzzerResetBtn = document.getElementById('buzzer-reset-btn');
 const teamBuzzChipsEl = document.getElementById('team-buzz-chips');
 const questionBackBtn = document.getElementById('question-back-btn');
 const questionTimerBar = document.getElementById('question-timer-bar');
@@ -147,7 +146,11 @@ function startQuestionTimer(seconds) {
     if (elapsed >= duration) {
       clearInterval(timerTimeout);
       timerTimeout = null;
-      lockQuestionForTimeout();
+      if (buzzerWinner !== null) {
+        void applyScore(buzzerWinner, false);
+      } else {
+        lockQuestionForTimeout();
+      }
     }
   }, 1000);
 }
@@ -199,7 +202,7 @@ function connectRemoteControls() {
 async function loadBoard() {
   const res = await fetch('/api/board');
   board = await res.json();
-  gameTitleEl.textContent = `🏆 ${board.gameTitle}`;
+  gameTitleEl.textContent = board.gameTitle;
   document.title = `${board.gameTitle} Board`;
   render();
   renderScoreboard();
@@ -587,8 +590,6 @@ window.addEventListener('keydown', (event) => {
   event.preventDefault();
   handleBuzz(teamIndex);
 });
-
-buzzerResetBtn.addEventListener('click', () => resetBuzzers(true));
 
 resetBtn.addEventListener('click', async () => {
   if (!confirm('Start a new game? This clears which squares have been played and resets scores to 0 (questions and team names stay the same).')) return;
