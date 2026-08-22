@@ -39,6 +39,8 @@ For EACH category, write exactly 5 clues, one for each point value: 100, 200, 30
 - Follow classic Jeoparty style: the "clue" is phrased as a statement of fact, and the "answer" is the correct response.
 - Keep each clue under 200 characters and each answer under 80 characters.
 - Do not reuse the category name verbatim inside its own clues.
+- Make sure the clues and answers are clear, unambiguous, factually correct, and make sense with the category.
+- Once all clues and answers are written, review them for correctness and ambiguity as an expert on each category topic.
 
 Respond with ONLY raw JSON, with each exact category name as a key and five objects containing points, clue, and answer.`;
 }
@@ -125,7 +127,7 @@ export class GameRoom extends DurableObject<Env> {
           teamName: buzzer.teamName,
           sentAt: Date.now(),
         });
-      } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'close-question'].includes(command.type || '')) {
+      } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'times-up', 'close-question'].includes(command.type || '')) {
         this.broadcast({ type: command.type, sentAt: Date.now() });
       }
     } catch {

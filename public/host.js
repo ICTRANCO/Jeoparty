@@ -17,6 +17,7 @@ const commandMessages = {
   'reveal-answer': 'Answer revealed on the gameboard',
   'score-correct': 'Correct score command sent',
   'score-incorrect': 'Incorrect score command sent',
+  'times-up': "Time's up command sent",
   'close-question': 'Question closed on the gameboard',
 };
 

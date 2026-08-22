@@ -146,13 +146,32 @@ function startQuestionTimer(seconds) {
     if (elapsed >= duration) {
       clearInterval(timerTimeout);
       timerTimeout = null;
-      if (buzzerWinner !== null) {
-        void applyScore(buzzerWinner, false);
-      } else {
-        lockQuestionForTimeout();
-      }
+      // Timer running out no longer auto-scores; it just flags the bar so the
+      // host can judge when to call time via the Time's Up button/command.
+      questionTimerBar.classList.add('times-up');
     }
   }, 1000);
+}
+
+function handleTimesUp() {
+  if (!activeCell || questionLocked) return;
+  clearInterval(timerTimeout);
+  timerTimeout = null;
+  timerGeneration += 1;
+  questionTimerBar.classList.remove('hidden');
+  questionTimerBar.classList.add('times-up');
+  questionTimerFill.querySelectorAll('.question-timer-chunk').forEach((chunk) => chunk.classList.add('gone'));
+  if (buzzerWinner !== null) {
+    // A team has buzzed in — leave the correct/incorrect call to the host
+    // instead of auto-scoring them wrong.
+    buzzersEnabled = false;
+    playTimesUpSound();
+    updateBuzzerStatus(`Time's up! Was ${board.teams[buzzerWinner].name} correct?`);
+    renderTeamBuzzChips();
+    renderScoringControls();
+  } else {
+    lockQuestionForTimeout();
+  }
 }
 
 window.addEventListener('pointerdown', getAudioContext, { once: true });
@@ -189,6 +208,8 @@ function connectRemoteControls() {
       applyScore(buzzerWinner, true);
     } else if (message.type === 'score-incorrect' && buzzerWinner !== null) {
       applyScore(buzzerWinner, false);
+    } else if (message.type === 'times-up') {
+      handleTimesUp();
     } else if (message.type === 'close-question') {
       closeOverlay();
     }
@@ -403,6 +424,12 @@ function renderScoringControls() {
   incorrectBtn.disabled = questionLocked || buzzerWinner === null;
   incorrectBtn.addEventListener('click', () => applyScore(buzzerWinner, false));
 
+  const timesUpBtn = document.createElement('button');
+  timesUpBtn.className = 'score-btn times-up';
+  timesUpBtn.textContent = "⏰ Time's Up";
+  timesUpBtn.disabled = questionLocked || !buzzersEnabled;
+  timesUpBtn.addEventListener('click', () => handleTimesUp());
+
   const hostBtn = document.createElement('button');
   hostBtn.className = 'btn-link host-btn';
   hostBtn.id = 'host-start-btn';
@@ -420,6 +447,7 @@ function renderScoringControls() {
 
   buttonRow.appendChild(correctBtn);
   buttonRow.appendChild(incorrectBtn);
+  buttonRow.appendChild(timesUpBtn);
   buttonRow.appendChild(hostBtn);
 
   scoringControls.appendChild(prompt);

@@ -323,7 +323,9 @@ For EACH category, write exactly 5 clues, one for each point value: 100, 200, 30
 - Keep language, topics, and complexity appropriate for the stated audience/age group.
 - Follow classic Jeoparty style: the "clue" is phrased as a statement of fact (not a question), and the "answer" is the correct response to it.
 - Keep each clue under 200 characters and each answer under 80 characters.
+- find examples of questions in this archive: https://j-archive.com/
 - Do not reuse the category name verbatim inside its own clues.
+- Make sure the clues and answers are clear, unambiguous, are factually correct, and make sense with the category.
 - Once all clues and answers are written, review the answers to ensure they are correct and unambiguous as if you are expert on that category topic
 
 Respond with ONLY raw JSON (no markdown code fences, no commentary) in exactly this shape:
@@ -436,7 +438,7 @@ ensureDataFiles().then(() => {
             teamName: message.teamName,
             sentAt: Date.now(),
           });
-        } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'close-question'].includes(message.type)) {
+        } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'times-up', 'close-question'].includes(message.type)) {
           broadcastRealtime({ type: message.type, sentAt: Date.now() });
         }
       } catch {}

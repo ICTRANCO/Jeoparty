@@ -400,6 +400,11 @@ body {
   color: var(--white);
 }
 
+.score-btn.times-up {
+  background: #f0b429;
+  color: #3a2a02;
+}
+
 .score-btn:hover {
   opacity: 1;
   filter: brightness(1.08);
@@ -772,6 +777,7 @@ textarea {
 .host-buzzers-btn, .host-reveal-btn { background: var(--gold); color: var(--ink); border-color: transparent; }
 .host-correct-btn { background: #2ecc71; color: #063a1c; border-color: transparent; }
 .host-incorrect-btn { background: #e94560; color: var(--white); border-color: transparent; }
+.host-timesup-btn { background: #f0b429; color: #3a2a02; border-color: transparent; }
 .host-buzzers-btn.active { background: #73e6a2; box-shadow: 0 8px 24px rgba(115, 230, 162, 0.2); }
 .host-command-status { min-height: 1.3em; margin-top: 12px; color: #cbd0ff; font-size: 0.9rem; }
 .host-score-adjustments { margin-top: 48px; padding-top: 28px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
