@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import initialBoard from '../data/board.json';
 
 const DEFAULT_GAME_TITLE = 'JEOPARTY!';
-const MODEL = 'gpt-4o-mini';
+const MODEL = 'gpt-4o';
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
@@ -27,22 +27,241 @@ function normalizedBoard(value: Board): Board {
 
 function buildPrompt(categories: string[], ageGroup: string): string {
   const age = ageGroup.trim() || 'general adult audience';
-  return `You are writing clues for a home-made Jeoparty-style trivia game.
+  return `You are an expert trivia writer and editor creating clues for a home-made Jeopardy-style game.
 
-Categories (use these exact names as JSON keys): ${categories.map((category) => `"${category}"`).join(', ')}
+Your priorities, in order, are:
 
-Audience / age group: ${age}
+1. Factual accuracy
+2. Strong fit with the category
+3. One clear, unambiguous answer
+4. Age-appropriate content
+5. A smooth difficulty progression from 100 to 500 points
 
-For EACH category, write exactly 5 clues, one for each point value: 100, 200, 300, 400, 500.
-- 100 should be the easiest, 500 the hardest, with a smooth difficulty curve in between.
-- Keep language, topics, and complexity appropriate for the stated audience/age group.
-- Follow classic Jeoparty style: the "clue" is phrased as a statement of fact, and the "answer" is the correct response.
-- Keep each clue under 200 characters and each answer under 80 characters.
-- Do not reuse the category name verbatim inside its own clues.
-- Make sure the clues and answers are clear, unambiguous, factually correct, and make sense with the category.
-- Once all clues and answers are written, review them for correctness and ambiguity as an expert on each category topic.
+Categories (use these exact names as JSON keys):
+${categories.map((c) => `"${c}"`).join(', ')}
 
-Respond with ONLY raw JSON, with each exact category name as a key and five objects containing points, clue, and answer.`;
+Audience / age group:
+${age}
+
+For EACH category, create exactly 5 clues, one for each point value: 100, 200, 300, 400, and 500.
+
+## CATEGORY INTERPRETATION
+
+Before creating clues, determine what each category means.
+
+Every clue must clearly and directly belong to its category.
+
+A clue should pass this test:
+
+"If a player saw the clue first and then saw the category name, would the connection feel obvious and intentional?"
+
+Do not include general trivia that is only loosely related to the category.
+
+If a category contains a special constraint, such as:
+
+* a specific letter
+* words beginning or ending a certain way
+* a person
+* a movie, show, book, or franchise
+* a historical period
+* a geographic location
+* a science or school subject
+* a type of wordplay
+
+then EVERY clue in that category must follow that constraint exactly.
+
+Do not use the category name verbatim inside its own clues unless necessary for clarity.
+
+## FACTUAL ACCURACY
+
+Only use facts you are highly confident are correct.
+
+Prefer well-established, stable facts over obscure or questionable trivia.
+
+Do not invent or guess:
+
+* names
+* dates
+* quotations
+* movie or TV details
+* song details
+* scientific facts
+* historical facts
+* records or statistics
+* character names or relationships
+
+Each clue must have one clearly intended answer.
+
+Avoid clues where two or more reasonable answers could fit.
+
+If you are uncertain whether a fact is correct, do not use it. Replace it with a different fact you know with high confidence.
+
+## DIFFICULTY
+
+Use this scale for the stated audience:
+
+100 points:
+Very easy. Most players should know it immediately.
+
+200 points:
+Easy. Familiar knowledge, but requires a little thought.
+
+300 points:
+Moderate. Requires solid knowledge of the topic.
+
+400 points:
+Hard. Less obvious, but still fair for the audience.
+
+500 points:
+Challenging. Requires deeper knowledge or an additional inference, but should never depend on an obscure technicality.
+
+Difficulty should come from the knowledge required, not from confusing wording.
+
+The five clues should become progressively harder.
+
+## JEOPARDY-STYLE CLUES
+
+Write each clue as a statement or description, NOT as a direct question.
+
+GOOD:
+Clue: "This planet is home to the Great Red Spot."
+Answer: "Jupiter"
+
+BAD:
+Clue: "What planet has the Great Red Spot?"
+Answer: "Jupiter"
+
+Answers should NOT include:
+"What is..."
+"Who is..."
+"Where is..."
+
+Return only the answer itself.
+
+Keep:
+
+* each clue under 200 characters
+* each answer under 80 characters
+
+Use clear, natural language appropriate for the stated age group.
+
+## CLUE QUALITY
+
+Each clue should provide enough information for a knowledgeable player to identify the intended answer.
+
+Do not make clues so broad that many answers could work.
+
+BAD:
+Clue: "This animal lives in Africa."
+Answer: "Lion"
+
+GOOD:
+Clue: "Known for the male's large mane, this African big cat lives in groups called prides."
+Answer: "Lion"
+
+Do not accidentally include the answer in the clue.
+
+Do not make the clue depend on spelling tricks unless the category specifically calls for them.
+
+Avoid:
+
+* subjective questions
+* disputed facts
+* opinion-based answers
+* trick questions
+* misleading wording
+* unnecessarily obscure trivia
+* clues based on very recent events unless the category specifically requires current events
+* duplicate facts or answers within the same game
+
+## INTERNAL REVIEW
+
+After drafting the clues, review EVERY clue before returning the final JSON.
+
+For each clue, silently check:
+
+1. FACT CHECK
+   Is the fact correct?
+
+2. ANSWER CHECK
+   Does the stated answer correctly satisfy every part of the clue?
+
+3. UNIQUE ANSWER CHECK
+   Could another reasonable answer also fit?
+
+4. CATEGORY CHECK
+   Does the clue clearly and specifically belong to this category?
+
+5. AGE CHECK
+   Is the knowledge and wording appropriate for the stated audience?
+
+6. DIFFICULTY CHECK
+   Does the point value match the difficulty relative to the other clues in that category?
+
+7. WORDING CHECK
+   Is the clue clear, concise, grammatical, and not phrased as a question?
+
+If ANY check fails, rewrite or replace that clue before returning the result.
+
+Be especially strict about factual accuracy and category fit.
+
+## OUTPUT REQUIREMENTS
+
+Respond with ONLY valid raw JSON.
+
+Do not include:
+
+* markdown
+* code fences
+* explanations
+* introductions
+* comments
+* notes
+
+Use the exact category names provided above as JSON keys.
+
+For every category, return exactly five objects in this order:
+
+100
+200
+300
+400
+500
+
+Use exactly this structure, with one entry per category (repeat the five-clue array for every category listed above):
+
+{
+"CategoryNameExactlyAsGiven": [
+{
+"points": 100,
+"clue": "...",
+"answer": "..."
+},
+{
+"points": 200,
+"clue": "...",
+"answer": "..."
+},
+{
+"points": 300,
+"clue": "...",
+"answer": "..."
+},
+{
+"points": 400,
+"clue": "...",
+"answer": "..."
+},
+{
+"points": 500,
+"clue": "...",
+"answer": "..."
+}
+],
+"AnotherCategoryNameExactlyAsGiven": [ ... ]
+}
+
+Before responding, perform one final silent review of the entire game and replace any clue that is questionable, ambiguous, incorrectly categorized, or factually uncertain.`;
 }
 
 function extractJson(text: string): Record<string, GeneratedCell[]> {
