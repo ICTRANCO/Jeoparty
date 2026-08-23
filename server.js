@@ -253,14 +253,14 @@ app.put('/api/board/teams', async (req, res) => {
 });
 
 app.post('/api/board/score', async (req, res) => {
-  const { teamIndex, points, correct } = req.body;
+  const { teamIndex, correct } = req.body;
+  if (!currentQuestion) {
+    return res.status(400).json({ error: 'No active question to score' });
+  }
   const board = await readBoard();
   const team = board.teams[teamIndex];
   if (!team) return res.status(404).json({ error: 'team not found' });
-  const value = Number(points);
-  if (!Number.isFinite(value)) {
-    return res.status(400).json({ error: 'points must be a number' });
-  }
+  const value = currentQuestion.points;
   team.score += correct ? value : -value;
   if (correct) {
     board.chooserTeamIndex = Number(teamIndex);

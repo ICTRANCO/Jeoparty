@@ -460,7 +460,7 @@ async function applyScore(teamIndex, correct) {
   const res = await fetch('/api/board/score', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ teamIndex, points: activeCell.points, correct }),
+    body: JSON.stringify({ teamIndex, correct }),
   });
 
   if (!res.ok) {

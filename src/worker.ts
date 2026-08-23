@@ -226,11 +226,11 @@ export class GameRoom extends DurableObject<Env> {
       }
 
       if (url.pathname === '/api/board/score' && method === 'POST') {
-        const body = await request.json<{ teamIndex: number; points: number; correct: boolean }>();
+        const body = await request.json<{ teamIndex: number; correct: boolean }>();
+        if (!this.currentQuestion) return json({ error: 'No active question to score' }, 400);
         const team = this.board.teams[Number(body.teamIndex)];
         if (!team) return json({ error: 'team not found' }, 404);
-        const points = Number(body.points);
-        if (!Number.isFinite(points)) return json({ error: 'points must be a number' }, 400);
+        const points = this.currentQuestion.points;
         team.score += body.correct ? points : -points;
         if (body.correct) this.board.chooserTeamIndex = Number(body.teamIndex);
         await this.ctx.storage.put('board', this.board);
