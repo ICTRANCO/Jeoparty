@@ -275,6 +275,41 @@ function extractJson(text: string): Record<string, GeneratedCell[]> {
   }
 }
 
+function normalizeForMatch(text: string): string {
+  return String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function clueLeaksAnswer(clue: string, answer: string): boolean {
+  const normAnswer = normalizeForMatch(answer);
+  return normAnswer.length >= 3 && normalizeForMatch(clue).includes(normAnswer);
+}
+
+// Flags entries whose clue gives away its own answer, or whose answer
+// duplicates another answer in the same category. Returns a Set of
+// "catIndex|points" keys for entries that should not be trusted.
+function findFlaggedEntries(parsed: Record<string, GeneratedCell[]>, categories: string[]): Set<string> {
+  const flagged = new Set<string>();
+  categories.forEach((catName, catIndex) => {
+    const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
+    const answerSeenAt = new Map<string, string>();
+    entries.forEach((entry) => {
+      const key = `${catIndex}|${Number(entry.points)}`;
+      if (clueLeaksAnswer(entry.clue, entry.answer)) flagged.add(key);
+      const answerKey = String(entry.answer || '').trim().toLowerCase();
+      if (!answerKey) return;
+      if (answerSeenAt.has(answerKey)) {
+        flagged.add(key);
+        flagged.add(answerSeenAt.get(answerKey) as string);
+      } else {
+        answerSeenAt.set(answerKey, key);
+      }
+    });
+  });
+  return flagged;
+}
+
+const GENERATE_MAX_ATTEMPTS = 2;
+
 export class GameRoom extends DurableObject<Env> {
   private board!: Board;
   private config!: GameConfig;
@@ -521,25 +556,41 @@ export class GameRoom extends DurableObject<Env> {
     if (!this.config.apiKey) return json({ error: 'No API key configured. Add one on the Admin page first.' }, 400);
     const body = await request.json<{ ageGroup?: string }>();
     const ageGroup = String(body.ageGroup || '');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${this.config.apiKey}` },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: buildPrompt(this.board.categories, ageGroup) }],
-      }),
-    });
-    const data = await response.json<OpenAiResponse>();
-    if (!response.ok) return json({ error: `OpenAI API error: ${data.error?.message || response.statusText}` }, response.status);
-    const generated = extractJson(data.choices?.[0]?.message?.content || '');
-    this.board.categories.forEach((category, catIndex) => {
+    const categories = this.board.categories;
+    const prompt = buildPrompt(categories, ageGroup);
+
+    let generated: Record<string, GeneratedCell[]> = {};
+    let flagged = new Set<string>();
+
+    for (let attempt = 1; attempt <= GENERATE_MAX_ATTEMPTS; attempt++) {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.config.apiKey}` },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 4096,
+          response_format: { type: 'json_object' },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      const data = await response.json<OpenAiResponse>();
+      if (!response.ok) return json({ error: `OpenAI API error: ${data.error?.message || response.statusText}` }, response.status);
+      generated = extractJson(data.choices?.[0]?.message?.content || '');
+      flagged = findFlaggedEntries(generated, categories);
+      if (flagged.size === 0) break;
+    }
+
+    categories.forEach((category, catIndex) => {
       const entries = generated[category];
       if (!Array.isArray(entries)) return;
       entries.forEach((entry) => {
-        const cell = cellFor(this.board, catIndex, Number(entry.points));
-        if (cell) {
+        const points = Number(entry.points);
+        const cell = cellFor(this.board, catIndex, points);
+        if (!cell) return;
+        if (flagged.has(`${catIndex}|${points}`)) {
+          cell.clue = '';
+          cell.answer = '';
+        } else {
           cell.clue = String(entry.clue || '');
           cell.answer = String(entry.answer || '');
         }
@@ -547,7 +598,13 @@ export class GameRoom extends DurableObject<Env> {
     });
     this.board.ageGroup = ageGroup || this.board.ageGroup;
     await this.ctx.storage.put('board', this.board);
-    return json(this.board);
+
+    const warnings = [...flagged].map((key) => {
+      const [catIndex, points] = key.split('|');
+      return `${categories[Number(catIndex)]} — $${points}`;
+    });
+
+    return json({ ...this.board, warnings });
   }
 }
 

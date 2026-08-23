@@ -264,9 +264,14 @@ generateBtn.addEventListener('click', async () => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Generation failed');
-    board = data;
+    const { warnings, ...cleanBoard } = data;
+    board = cleanBoard;
     renderQaTable();
-    setStatus(generateStatus, 'Questions generated. Review and edit below, then save any tweaks.', 'ok');
+    if (warnings && warnings.length) {
+      setStatus(generateStatus, `Generated, but left blank for you to write by hand (answer was given away or reused): ${warnings.join(', ')}`, 'error');
+    } else {
+      setStatus(generateStatus, 'Questions generated. Review and edit below, then save any tweaks.', 'ok');
+    }
   } catch (err) {
     setStatus(generateStatus, err.message, 'error');
   } finally {

@@ -12,211 +12,211 @@
     {
       "catIndex": 0,
       "points": 100,
-      "clue": "This type of energy comes from the sun.",
-      "answer": "Solar energy",
+      "clue": "This is the force that keeps us from floating off into space.",
+      "answer": "Gravity",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 200,
-      "clue": "This gas is what we breathe in to stay alive.",
-      "answer": "Oxygen",
+      "clue": "Plants use this process to turn sunlight into food.",
+      "answer": "Photosynthesis",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 300,
-      "clue": "Water changes into this form when it freezes.",
-      "answer": "Ice",
+      "clue": "This hot liquid rock can flow out of a volcano.",
+      "answer": "Lava",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 400,
-      "clue": "The human body has this many senses.",
-      "answer": "Five",
+      "clue": "These tiny particles make up everything around us.",
+      "answer": "Atoms",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 500,
-      "clue": "This planet is known as the 'Red Planet.'",
-      "answer": "Mars",
+      "clue": "This term describes an animal that hunts and eats other animals.",
+      "answer": "Predator",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 100,
-      "clue": "The number of sides on a triangle.",
-      "answer": "Three",
+      "clue": "The result of adding 3 and 2.",
+      "answer": "5",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 200,
-      "clue": "Five plus three equals this number.",
-      "answer": "Eight",
-      "used": false
-    },
-    {
-      "catIndex": 1,
-      "points": 300,
-      "clue": "This shape has four equal sides.",
+      "clue": "This shape has four equal sides and four right angles.",
       "answer": "Square",
       "used": false
     },
     {
       "catIndex": 1,
+      "points": 300,
+      "clue": "A number not divisible by 2 is called this.",
+      "answer": "Odd",
+      "used": false
+    },
+    {
+      "catIndex": 1,
       "points": 400,
-      "clue": "Ten times ten is this number.",
-      "answer": "One hundred",
+      "clue": "This is the term for the distance around a circle.",
+      "answer": "Circumference",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 500,
-      "clue": "This is the value of pi (approximately).",
-      "answer": "3.14",
+      "clue": "This mathematical operation is the opposite of multiplication.",
+      "answer": "Division",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 100,
-      "clue": "He is the superhero dog who is also a police officer.",
+      "clue": "He is the hero who is part dog and part man.",
       "answer": "Dog Man",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 200,
-      "clue": "He is the sidekick cat who helps Dog Man.",
-      "answer": "Cat Kid",
-      "used": false
-    },
-    {
-      "catIndex": 2,
-      "points": 300,
-      "clue": "This villain is known for being very mean and bad.",
+      "clue": "This villain is a mischievous cat in the series.",
       "answer": "Petey",
       "used": false
     },
     {
       "catIndex": 2,
+      "points": 300,
+      "clue": "Dog Man's loyal sidekick is this mechanical superhero.",
+      "answer": "Cat Kid",
+      "used": false
+    },
+    {
+      "catIndex": 2,
       "points": 400,
-      "clue": "Dog Man's full name includes this word 'Hero.'",
-      "answer": "Dog Man's full name",
+      "clue": "The writer behind the Dog Man series.",
+      "answer": "Dav Pilkey",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 500,
-      "clue": "This is the name of Dog Man's creator.",
-      "answer": "Dav Pilkey",
+      "clue": "This character is a tiny rabbit with a great personality.",
+      "answer": "Li'l Petey",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 100,
-      "clue": "This hero wears a red suit and has spider-like powers.",
+      "clue": "He wears a red and blue suit and swings from webs.",
       "answer": "Spider-Man",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 200,
-      "clue": "This superhero has a shield and is known as Captain America.",
+      "clue": "This superhero uses a shield and was made by the Super-Soldier Serum.",
       "answer": "Captain America",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 300,
-      "clue": "This superhero can control thunder and lightning.",
-      "answer": "Thor",
+      "clue": "He is the green character who turns into a giant when angry.",
+      "answer": "Hulk",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 400,
-      "clue": "This hero is known for his iron suit and technology.",
-      "answer": "Iron Man",
+      "clue": "This hero is also known as the Sorcerer Supreme.",
+      "answer": "Doctor Strange",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 500,
-      "clue": "This character is the leader of the Avengers.",
-      "answer": "Captain America",
+      "clue": "She is also known as Black Widow.",
+      "answer": "Natasha Romanoff",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 100,
-      "clue": "These are the large stone structures built as tombs for pharaohs.",
+      "clue": "These massive structures were built as tombs for the pharaohs.",
       "answer": "Pyramids",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 200,
-      "clue": "This river was essential to life in ancient Egypt.",
-      "answer": "Nile River",
+      "clue": "This river was crucial to Ancient Egyptian civilization.",
+      "answer": "Nile",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 300,
-      "clue": "This famous queen was known for her beauty and cunning.",
-      "answer": "Cleopatra",
+      "clue": "He was the boy king whose tomb was discovered nearly intact in 1922.",
+      "answer": "Tutankhamun",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 400,
-      "clue": "Tutankhamun was famous for this item found in his tomb.",
-      "answer": "Golden mask",
+      "clue": "This tool helped decode Egyptian hieroglyphs.",
+      "answer": "Rosetta Stone",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 500,
-      "clue": "This was the writing system used in ancient Egypt.",
-      "answer": "Hieroglyphics",
+      "clue": "The ancient Egyptians wrote on this type of paper made from reeds.",
+      "answer": "Papyrus",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 100,
-      "clue": "This was the conflict from 1939 to 1945 in which many countries fought.",
-      "answer": "World War II",
+      "clue": "He was the leader of Nazi Germany during WWII.",
+      "answer": "Adolf Hitler",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 200,
-      "clue": "This event brought the United States into the war in 1941.",
-      "answer": "Pearl Harbor attack",
+      "clue": "This event brought the United States into WWII on December 7, 1941.",
+      "answer": "Attack on Pearl Harbor",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 300,
-      "clue": "This famous leader was the Prime Minister of the UK during the war.",
-      "answer": "Winston Churchill",
+      "clue": "The Allied Powers included the UK, the US, and this large Eastern country.",
+      "answer": "Soviet Union",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 400,
-      "clue": "This military operation was the Allied invasion of France.",
-      "answer": "D-Day",
+      "clue": "This British leader gave inspiring speeches during the war.",
+      "answer": "Winston Churchill",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 500,
-      "clue": "This was the code name for the project to develop the atomic bomb.",
-      "answer": "Manhattan Project",
+      "clue": "The first atomic bomb used in war was dropped on this Japanese city.",
+      "answer": "Hiroshima",
       "used": false
     }
   ],

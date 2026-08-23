@@ -563,6 +563,41 @@ function extractJson(text) {
   }
 }
 
+function normalizeForMatch(text) {
+  return String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function clueLeaksAnswer(clue, answer) {
+  const normAnswer = normalizeForMatch(answer);
+  return normAnswer.length >= 3 && normalizeForMatch(clue).includes(normAnswer);
+}
+
+// Flags entries whose clue gives away its own answer, or whose answer
+// duplicates another answer in the same category. Returns a Set of
+// "catIndex|points" keys for entries that should not be trusted.
+function findFlaggedEntries(parsed, categories) {
+  const flagged = new Set();
+  categories.forEach((catName, catIndex) => {
+    const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
+    const answerSeenAt = new Map();
+    entries.forEach((entry) => {
+      const key = `${catIndex}|${Number(entry.points)}`;
+      if (clueLeaksAnswer(entry.clue, entry.answer)) flagged.add(key);
+      const answerKey = String(entry.answer || '').trim().toLowerCase();
+      if (!answerKey) return;
+      if (answerSeenAt.has(answerKey)) {
+        flagged.add(key);
+        flagged.add(answerSeenAt.get(answerKey));
+      } else {
+        answerSeenAt.set(answerKey, key);
+      }
+    });
+  });
+  return flagged;
+}
+
+const GENERATE_MAX_ATTEMPTS = 2;
+
 app.post('/api/generate', async (req, res) => {
   try {
     const config = await readConfig();
@@ -576,40 +611,52 @@ app.post('/api/generate', async (req, res) => {
 
     const prompt = buildPrompt(categories, ageGroup);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    let parsed;
+    let flagged = new Set();
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      let message = errBody;
-      try {
-        message = JSON.parse(errBody).error?.message || errBody;
-      } catch {}
-      return res.status(response.status).json({ error: `OpenAI API error: ${message}` });
+    for (let attempt = 1; attempt <= GENERATE_MAX_ATTEMPTS; attempt++) {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 4096,
+          response_format: { type: 'json_object' },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        let message = errBody;
+        try {
+          message = JSON.parse(errBody).error?.message || errBody;
+        } catch {}
+        return res.status(response.status).json({ error: `OpenAI API error: ${message}` });
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || '';
+      parsed = extractJson(text);
+      flagged = findFlaggedEntries(parsed, categories);
+      if (flagged.size === 0) break;
     }
-
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
-    const parsed = extractJson(text);
 
     for (let c = 0; c < categories.length; c++) {
       const catName = categories[c];
       const entries = parsed[catName];
       if (!Array.isArray(entries)) continue;
       for (const entry of entries) {
-        const cell = cellFor(board, c, Number(entry.points));
-        if (cell) {
+        const points = Number(entry.points);
+        const cell = cellFor(board, c, points);
+        if (!cell) continue;
+        if (flagged.has(`${c}|${points}`)) {
+          cell.clue = '';
+          cell.answer = '';
+        } else {
           cell.clue = String(entry.clue || '');
           cell.answer = String(entry.answer || '');
         }
@@ -618,7 +665,13 @@ app.post('/api/generate', async (req, res) => {
     board.ageGroup = ageGroup || board.ageGroup;
 
     await writeBoard(board);
-    res.json(board);
+
+    const warnings = [...flagged].map((key) => {
+      const [catIndex, points] = key.split('|');
+      return `${categories[Number(catIndex)]} — $${points}`;
+    });
+
+    res.json({ ...board, warnings });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Generation failed' });
   }
