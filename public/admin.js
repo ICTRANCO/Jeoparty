@@ -48,6 +48,7 @@ async function loadConfig() {
 
 function renderCategoryInputs() {
   categoryInputsEl.innerHTML = '';
+  const categoryNotes = Array.isArray(board.categoryNotes) ? board.categoryNotes : [];
   board.categories.forEach((name, i) => {
     const field = document.createElement('div');
     field.className = 'field';
@@ -58,8 +59,21 @@ function renderCategoryInputs() {
     input.value = name;
     input.dataset.index = i;
     input.maxLength = 60;
+
+    const notesLabel = document.createElement('label');
+    notesLabel.textContent = 'AI guidance (optional)';
+    const notesBox = document.createElement('textarea');
+    notesBox.className = 'category-notes-input';
+    notesBox.value = categoryNotes[i] || '';
+    notesBox.dataset.index = i;
+    notesBox.maxLength = 300;
+    notesBox.rows = 2;
+    notesBox.placeholder = 'e.g. focus on 90s movies, avoid sports trivia, only use MCU films not comics';
+
     field.appendChild(label);
     field.appendChild(input);
+    field.appendChild(notesLabel);
+    field.appendChild(notesBox);
     categoryInputsEl.appendChild(field);
   });
 }
@@ -177,13 +191,15 @@ saveTitleBtn.addEventListener('click', async () => {
 
 saveCategoriesBtn.addEventListener('click', async () => {
   const inputs = categoryInputsEl.querySelectorAll('input');
+  const notesInputs = categoryInputsEl.querySelectorAll('.category-notes-input');
   const categories = Array.from(inputs).map((i) => i.value.trim() || `Category ${Number(i.dataset.index) + 1}`);
+  const categoryNotes = Array.from(notesInputs).map((t) => t.value.trim());
   saveCategoriesBtn.disabled = true;
   try {
     const res = await fetch('/api/board/categories', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ categories }),
+      body: JSON.stringify({ categories, categoryNotes }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     board = await res.json();

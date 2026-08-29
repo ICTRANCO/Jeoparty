@@ -21,13 +21,22 @@ function normalizedBoard(value: Board): Board {
   board.gameTitle = String(board.gameTitle || '').trim() || DEFAULT_GAME_TITLE;
   if (board.questionTimerSeconds === undefined) board.questionTimerSeconds = 5;
   if (board.buzzTimerSeconds === undefined) board.buzzTimerSeconds = 5;
+  if (!Array.isArray(board.categoryNotes) || board.categoryNotes.length !== board.categories.length) {
+    board.categoryNotes = board.categories.map((_, i) => String(board.categoryNotes?.[i] || ''));
+  }
   if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex as number]) board.chooserTeamIndex = null;
   delete (board as Board & { scoreHistory?: unknown[] }).scoreHistory;
   return board;
 }
 
-function buildPrompt(categories: string[], ageGroup: string): string {
+function buildPrompt(categories: string[], ageGroup: string, categoryNotes: string[]): string {
   const age = ageGroup.trim() || 'general adult audience';
+  const categoryListing = categories
+    .map((c, i) => {
+      const note = categoryNotes && categoryNotes[i] ? String(categoryNotes[i]).trim() : '';
+      return note ? `- "${c}" — Guidance for this category: ${note}` : `- "${c}"`;
+    })
+    .join('\n');
   return `You are an expert trivia writer and editor creating clues for a home-made Jeopardy-style game.
 
 Your priorities, in order, are:
@@ -38,8 +47,9 @@ Your priorities, in order, are:
 4. Age-appropriate content
 5. A smooth difficulty progression from 100 to 500 points
 
-Categories (use these exact names as JSON keys):
-${categories.map((c) => `"${c}"`).join(', ')}
+Categories (use these exact names as JSON keys). Where a category has guidance attached, every clue in that category must follow it:
+
+${categoryListing}
 
 Audience / age group:
 ${age}
@@ -311,7 +321,7 @@ function findFlaggedEntries(parsed: Record<string, GeneratedCell[]>, categories:
   return flagged;
 }
 
-interface ReviewEntry { category: string; points: number; clue: string; answer: string; knownIssue?: string | null }
+interface ReviewEntry { category: string; points: number; clue: string; answer: string; categoryNote?: string; knownIssue?: string | null }
 interface ReviewProblem { category?: string; points?: number; reason?: string; clue?: string; answer?: string }
 interface ReviewResponse { problems?: ReviewProblem[] }
 interface Resolution { reason: string; clue: string; answer: string }
@@ -319,22 +329,23 @@ interface Resolution { reason: string; clue: string; answer: string }
 function buildReviewPrompt(entries: ReviewEntry[]): string {
   const listing = entries
     .map((e) => {
+      const guidance = e.categoryNote ? `\nCategory guidance: ${e.categoryNote}` : '';
       const hint = e.knownIssue ? `\nKNOWN ISSUE: ${e.knownIssue} — this entry MUST be replaced.` : '';
-      return `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${hint}`;
+      return `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${guidance}${hint}`;
     })
     .join('\n\n');
   return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
 
 For EACH clue/answer pair below, check:
 
-1. CATEGORY FIT — Does the clue clearly and specifically belong to its stated category?
+1. CATEGORY FIT — Does the clue clearly and specifically belong to its stated category, and follow its category guidance (if any) exactly?
 2. ANSWER LEAK — Does the clue give away the answer, directly or by naming it in another form?
 3. FACTUAL ACCURACY — Is the stated answer actually correct for the clue as written?
 4. UNIQUE ANSWER — Could a different, equally valid answer also fit the clue?
 
 Any entry marked KNOWN ISSUE has already failed review and must be replaced regardless of your own judgment.
 
-When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value. Match the difficulty to the point value (100 = very easy, 500 = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
+When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value, following its category guidance (if any). Match the difficulty to the point value (100 = very easy, 500 = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
 
 Board:
 
@@ -507,9 +518,15 @@ export class GameRoom extends DurableObject<Env> {
       }
 
       if (url.pathname === '/api/board/categories' && method === 'PUT') {
-        const body = await request.json<{ categories?: unknown }>();
+        const body = await request.json<{ categories?: unknown; categoryNotes?: unknown }>();
         if (!Array.isArray(body.categories) || body.categories.length !== 6) return json({ error: 'categories must be an array of 6 strings' }, 400);
+        if (body.categoryNotes !== undefined && (!Array.isArray(body.categoryNotes) || body.categoryNotes.length !== 6)) {
+          return json({ error: 'categoryNotes must be an array of 6 strings' }, 400);
+        }
         this.board.categories = body.categories.map((category) => String(category || '').slice(0, 60));
+        if (body.categoryNotes !== undefined) {
+          this.board.categoryNotes = body.categoryNotes.map((note) => String(note || '').slice(0, 300));
+        }
         await this.ctx.storage.put('board', this.board);
         return json(this.board);
       }
@@ -644,7 +661,8 @@ export class GameRoom extends DurableObject<Env> {
     const body = await request.json<{ ageGroup?: string }>();
     const ageGroup = String(body.ageGroup || '');
     const categories = this.board.categories;
-    const prompt = buildPrompt(categories, ageGroup);
+    const categoryNotes = this.board.categoryNotes;
+    const prompt = buildPrompt(categories, ageGroup, categoryNotes);
 
     let generated: Record<string, GeneratedCell[]> = {};
     let flagged = new Map<string, string>();
@@ -682,6 +700,7 @@ export class GameRoom extends DurableObject<Env> {
           points,
           clue: String(entry.clue || ''),
           answer: String(entry.answer || ''),
+          categoryNote: categoryNotes && categoryNotes[catIndex] ? String(categoryNotes[catIndex]).trim() : '',
           knownIssue: flagged.get(key) || null,
         });
       });
@@ -742,7 +761,7 @@ export default {
 
 interface Cell { catIndex: number; points: number; clue: string; answer: string; used: boolean }
 interface Team { name: string; score: number }
-interface Board { gameTitle: string; categories: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null; questionTimerSeconds: number | null; buzzTimerSeconds: number | null }
+interface Board { gameTitle: string; categories: string[]; categoryNotes: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null; questionTimerSeconds: number | null; buzzTimerSeconds: number | null }
 interface GameConfig { apiKey: string }
 interface HostQuestion { catIndex: number; category: string; points: number; clue: string; answer: string }
 interface HostBuzzer { teamIndex: number; teamName: string }

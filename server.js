@@ -40,7 +40,8 @@ function defaultBoard() {
       cells.push({ catIndex: c, points, clue: '', answer: '', used: false });
     }
   }
-  return { gameTitle: DEFAULT_GAME_TITLE, categories, ageGroup: '', cells, teams: defaultTeams(), questionTimerSeconds: 5, buzzTimerSeconds: 5 };
+  const categoryNotes = Array.from({ length: NUM_CATEGORIES }, () => '');
+  return { gameTitle: DEFAULT_GAME_TITLE, categories, categoryNotes, ageGroup: '', cells, teams: defaultTeams(), questionTimerSeconds: 5, buzzTimerSeconds: 5 };
 }
 
 async function ensureDataFiles() {
@@ -68,6 +69,9 @@ async function readBoard() {
   }
   if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex]) {
     board.chooserTeamIndex = null;
+  }
+  if (!Array.isArray(board.categoryNotes) || board.categoryNotes.length !== NUM_CATEGORIES) {
+    board.categoryNotes = Array.from({ length: NUM_CATEGORIES }, (_, i) => String(board.categoryNotes?.[i] || ''));
   }
   if (board.questionTimerSeconds !== null && !Number.isFinite(board.questionTimerSeconds)) board.questionTimerSeconds = 5;
   if (board.buzzTimerSeconds !== null && !Number.isFinite(board.buzzTimerSeconds)) board.buzzTimerSeconds = 5;
@@ -129,12 +133,18 @@ app.put('/api/board/title', async (req, res) => {
 });
 
 app.put('/api/board/categories', async (req, res) => {
-  const { categories } = req.body;
+  const { categories, categoryNotes } = req.body;
   if (!Array.isArray(categories) || categories.length !== NUM_CATEGORIES) {
     return res.status(400).json({ error: `categories must be an array of ${NUM_CATEGORIES} strings` });
   }
+  if (categoryNotes !== undefined && (!Array.isArray(categoryNotes) || categoryNotes.length !== NUM_CATEGORIES)) {
+    return res.status(400).json({ error: `categoryNotes must be an array of ${NUM_CATEGORIES} strings` });
+  }
   const board = await readBoard();
   board.categories = categories.map((c) => String(c || '').slice(0, 60));
+  if (categoryNotes !== undefined) {
+    board.categoryNotes = categoryNotes.map((n) => String(n || '').slice(0, 300));
+  }
   await writeBoard(board);
   res.json(board);
 });
@@ -310,8 +320,14 @@ app.delete('/api/config/apikey', async (req, res) => {
 
 // ---- AI generation ----
 
-function buildPrompt(categories, ageGroup) {
+function buildPrompt(categories, ageGroup, categoryNotes) {
   const age = ageGroup && ageGroup.trim() ? ageGroup.trim() : 'general adult audience';
+  const categoryListing = categories
+    .map((c, i) => {
+      const note = categoryNotes && categoryNotes[i] ? String(categoryNotes[i]).trim() : '';
+      return note ? `- "${c}" — Guidance for this category: ${note}` : `- "${c}"`;
+    })
+    .join('\n');
   return `You are an expert trivia writer and editor creating clues for a home-made Jeopardy-style game.
 
 Your priorities, in order, are:
@@ -322,8 +338,9 @@ Your priorities, in order, are:
 4. Age-appropriate content
 5. A smooth difficulty progression from 100 to 500 points
 
-Categories (use these exact names as JSON keys):
-${categories.map((c) => `"${c}"`).join(', ')}
+Categories (use these exact names as JSON keys). Where a category has guidance attached, every clue in that category must follow it:
+
+${categoryListing}
 
 Audience / age group:
 ${age}
@@ -601,22 +618,23 @@ function findFlaggedEntries(parsed, categories) {
 function buildReviewPrompt(entries) {
   const listing = entries
     .map((e) => {
+      const guidance = e.categoryNote ? `\nCategory guidance: ${e.categoryNote}` : '';
       const hint = e.knownIssue ? `\nKNOWN ISSUE: ${e.knownIssue} — this entry MUST be replaced.` : '';
-      return `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${hint}`;
+      return `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${guidance}${hint}`;
     })
     .join('\n\n');
   return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
 
 For EACH clue/answer pair below, check:
 
-1. CATEGORY FIT — Does the clue clearly and specifically belong to its stated category?
+1. CATEGORY FIT — Does the clue clearly and specifically belong to its stated category, and follow its category guidance (if any) exactly?
 2. ANSWER LEAK — Does the clue give away the answer, directly or by naming it in another form?
 3. FACTUAL ACCURACY — Is the stated answer actually correct for the clue as written?
 4. UNIQUE ANSWER — Could a different, equally valid answer also fit the clue?
 
 Any entry marked KNOWN ISSUE has already failed review and must be replaced regardless of your own judgment.
 
-When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value. Match the difficulty to the point value (100 = very easy, 500 = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
+When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value, following its category guidance (if any). Match the difficulty to the point value (100 = very easy, 500 = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
 
 Board:
 
@@ -684,8 +702,9 @@ app.post('/api/generate', async (req, res) => {
     const board = await readBoard();
     const { ageGroup } = req.body;
     const categories = board.categories;
+    const categoryNotes = board.categoryNotes;
 
-    const prompt = buildPrompt(categories, ageGroup);
+    const prompt = buildPrompt(categories, ageGroup, categoryNotes);
 
     let parsed;
     let flagged = new Map();
@@ -736,6 +755,7 @@ app.post('/api/generate', async (req, res) => {
           points,
           clue: String(entry.clue || ''),
           answer: String(entry.answer || ''),
+          categoryNote: categoryNotes && categoryNotes[catIndex] ? String(categoryNotes[catIndex]).trim() : '',
           knownIssue: flagged.get(key) || null,
         });
       });
