@@ -600,7 +600,10 @@ function findFlaggedEntries(parsed, categories) {
 
 function buildReviewPrompt(entries) {
   const listing = entries
-    .map((e) => `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"`)
+    .map((e) => {
+      const hint = e.knownIssue ? `\nKNOWN ISSUE: ${e.knownIssue} — this entry MUST be replaced.` : '';
+      return `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${hint}`;
+    })
     .join('\n\n');
   return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
 
@@ -611,18 +614,26 @@ For EACH clue/answer pair below, check:
 3. FACTUAL ACCURACY — Is the stated answer actually correct for the clue as written?
 4. UNIQUE ANSWER — Could a different, equally valid answer also fit the clue?
 
+Any entry marked KNOWN ISSUE has already failed review and must be replaced regardless of your own judgment.
+
+When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value. Match the difficulty to the point value (100 = very easy, 500 = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
+
 Board:
 
 ${listing}
 
 Respond with ONLY raw JSON in exactly this shape (empty array if every entry is fine):
 
-{"problems": [{"category": "ExactCategoryNameAsGiven", "points": 100, "reason": "short explanation"}]}`;
+{"problems": [{"category": "ExactCategoryNameAsGiven", "points": 100, "reason": "short explanation", "clue": "replacement clue", "answer": "replacement answer"}]}`;
 }
 
-// Second-pass review: sends the generated (mechanically-clean) entries back
-// to the model as a fact-checker/editor and flags anything it objects to.
-// Best-effort — a review failure should not block a successful generation.
+// Second-pass review: sends every generated entry back to the model as a
+// fact-checker/editor. Entries already known to be bad (mechanical leak or
+// duplicate-answer check) are marked so the model replaces them outright;
+// anything else it objects to on its own (category fit, factual accuracy,
+// ambiguity) is flagged and replaced too. Returns a Map of "catIndex|points"
+// -> { reason, clue, answer } (clue/answer are '' if no replacement was
+// produced). Best-effort — a review failure should not block generation.
 async function reviewGeneratedEntries(entries, categories, apiKey) {
   const flagged = new Map();
   if (!entries.length) return flagged;
@@ -635,7 +646,7 @@ async function reviewGeneratedEntries(entries, categories, apiKey) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2048,
+        max_tokens: 3072,
         response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: buildReviewPrompt(entries) }],
       }),
@@ -649,7 +660,11 @@ async function reviewGeneratedEntries(entries, categories, apiKey) {
       const catIndex = categories.indexOf(problem.category);
       const points = Number(problem.points);
       if (catIndex === -1 || !POINTS.includes(points)) return;
-      flagged.set(`${catIndex}|${points}`, String(problem.reason || 'Flagged by review pass'));
+      flagged.set(`${catIndex}|${points}`, {
+        reason: String(problem.reason || 'Flagged by review pass'),
+        clue: String(problem.clue || ''),
+        answer: String(problem.answer || ''),
+      });
     });
   } catch {
     // Review is a best-effort second pass; ignore failures.
@@ -706,19 +721,38 @@ app.post('/api/generate', async (req, res) => {
       if (flagged.size === 0) break;
     }
 
-    // Second-pass review: once the board is otherwise clean, have the model
-    // re-check the surviving entries as an independent editor/fact-checker.
+    // Second-pass review: send the whole board to the model as an
+    // independent editor/fact-checker. Entries the mechanical check already
+    // flagged are marked as known issues so it replaces them outright;
+    // anything else it objects to gets replaced too.
     const reviewCandidates = [];
     categories.forEach((catName, catIndex) => {
       const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
       entries.forEach((entry) => {
         const points = Number(entry.points);
-        if (flagged.has(`${catIndex}|${points}`)) return;
-        reviewCandidates.push({ category: catName, points, clue: String(entry.clue || ''), answer: String(entry.answer || '') });
+        const key = `${catIndex}|${points}`;
+        reviewCandidates.push({
+          category: catName,
+          points,
+          clue: String(entry.clue || ''),
+          answer: String(entry.answer || ''),
+          knownIssue: flagged.get(key) || null,
+        });
       });
     });
-    const reviewFlags = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey);
-    reviewFlags.forEach((reason, key) => flagged.set(key, reason));
+    const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey);
+
+    // Resolve every flagged entry to either a validated replacement or a
+    // blank (if no usable replacement came back).
+    const resolutions = new Map();
+    flagged.forEach((reason, key) => resolutions.set(key, { reason, clue: '', answer: '' }));
+    reviewResults.forEach((result, key) => resolutions.set(key, result));
+    resolutions.forEach((resolution) => {
+      if (resolution.clue && resolution.answer && clueLeaksAnswer(resolution.clue, resolution.answer)) {
+        resolution.clue = '';
+        resolution.answer = '';
+      }
+    });
 
     for (let c = 0; c < categories.length; c++) {
       const catName = categories[c];
@@ -728,9 +762,10 @@ app.post('/api/generate', async (req, res) => {
         const points = Number(entry.points);
         const cell = cellFor(board, c, points);
         if (!cell) continue;
-        if (flagged.has(`${c}|${points}`)) {
-          cell.clue = '';
-          cell.answer = '';
+        const resolution = resolutions.get(`${c}|${points}`);
+        if (resolution) {
+          cell.clue = resolution.clue;
+          cell.answer = resolution.answer;
         } else {
           cell.clue = String(entry.clue || '');
           cell.answer = String(entry.answer || '');
@@ -741,9 +776,12 @@ app.post('/api/generate', async (req, res) => {
 
     await writeBoard(board);
 
-    const warnings = [...flagged.entries()].map(([key, reason]) => {
+    const warnings = [...resolutions.entries()].map(([key, resolution]) => {
       const [catIndex, points] = key.split('|');
-      return `${categories[Number(catIndex)]} — $${points}: ${reason}`;
+      const label = `${categories[Number(catIndex)]} — $${points}`;
+      return resolution.clue && resolution.answer
+        ? `${label}: replaced (${resolution.reason})`
+        : `${label}: left blank, please write your own (${resolution.reason})`;
     });
 
     res.json({ ...board, warnings });

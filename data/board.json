@@ -12,211 +12,211 @@
     {
       "catIndex": 0,
       "points": 100,
-      "clue": "This star at the center of our solar system provides light and heat.",
+      "clue": "This star is at the center of our solar system.",
       "answer": "Sun",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 200,
-      "clue": "These bodies of water make up about 71% of the Earth's surface.",
-      "answer": "Oceans",
+      "clue": "These are the only planets in our solar system without moons.",
+      "answer": "Mercury and Venus",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 300,
-      "clue": "This gas makes up most of our Earth's atmosphere.",
-      "answer": "Nitrogen",
+      "clue": "These animals can change their skin color to match their surroundings.",
+      "answer": "Chameleons",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 400,
-      "clue": "This force keeps you from floating off into space.",
+      "clue": "This force keeps us from floating into space while standing on Earth.",
       "answer": "Gravity",
       "used": false
     },
     {
       "catIndex": 0,
       "points": 500,
-      "clue": "This planet in our solar system is known for its beautiful rings.",
-      "answer": "Saturn",
+      "clue": "This device measures atmospheric pressure and is used in weather forecasting.",
+      "answer": "Barometer",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 100,
-      "clue": "This shape has three sides and three angles.",
-      "answer": "Triangle",
+      "clue": "This is the value of pi rounded to three decimal places.",
+      "answer": "3.142",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 200,
-      "clue": "This is the result of adding 8 and 7.",
-      "answer": "15",
+      "clue": "This addition process always produces the same result when reversed.",
+      "answer": "Commutative property",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 300,
-      "clue": "This solid figure has six faces, all of which are squares.",
-      "answer": "Cube",
+      "clue": "This is what you call a polygon with six sides.",
+      "answer": "Hexagon",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 400,
-      "clue": "In fractions, this is the number on the bottom part of the fraction.",
+      "clue": "The bottom number of a fraction, indicating total parts, is called this.",
       "answer": "Denominator",
       "used": false
     },
     {
       "catIndex": 1,
       "points": 500,
-      "clue": "This is the term for a number that can only be divided evenly by 1 and itself.",
-      "answer": "Prime number",
+      "clue": "This mathematical symbol represents the square root of -1.",
+      "answer": "i",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 100,
-      "clue": "The main character in these comics is part dog, part human.",
+      "clue": "This character is the main hero, who is part dog and part man.",
       "answer": "Dog Man",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 200,
-      "clue": "This villainous cat often causes trouble for Dog Man.",
+      "clue": "Dog Man's sidekick, who is a witty cat and a loyal friend.",
       "answer": "Petey",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 300,
-      "clue": "Dog Man is a creation of this author, also known for Captain Underpants.",
-      "answer": "Dav Pilkey",
+      "clue": "This young, enthusiastic boy helps Dog Man with his comic-making skills.",
+      "answer": "Li'l Petey",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 400,
-      "clue": "This robot cat created by Petey helps Dog Man and his friends.",
-      "answer": "Lil' Petey",
+      "clue": "In the books, Dog Man works as a police officer in this position.",
+      "answer": "Officer (cop)",
       "used": false
     },
     {
       "catIndex": 2,
       "points": 500,
-      "clue": "This is the superhero team Dog Man forms with his friends.",
-      "answer": "The Supa Buddies",
+      "clue": "The name of the robot buddy who assists Dog Man and his friends.",
+      "answer": "80-HD",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 100,
-      "clue": "This hero's real name is Peter Parker, and he swings on webs.",
-      "answer": "Spider-Man",
-      "used": false
-    },
-    {
-      "catIndex": 3,
-      "points": 200,
-      "clue": "This superhero is known for his powerful shield made of vibranium.",
+      "clue": "This superhero has a shield and is known as the First Avenger.",
       "answer": "Captain America",
       "used": false
     },
     {
       "catIndex": 3,
+      "points": 200,
+      "clue": "This Marvel hero swings through the city using webs.",
+      "answer": "Spider-Man",
+      "used": false
+    },
+    {
+      "catIndex": 3,
       "points": 300,
-      "clue": "This superhero group includes Iron Man, Thor, and Hulk.",
-      "answer": "The Avengers",
+      "clue": "Tony Stark becomes this high-tech armored superhero.",
+      "answer": "Iron Man",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 400,
-      "clue": "This Marvel hero rules the kingdom of Wakanda.",
-      "answer": "Black Panther",
+      "clue": "The Black Panther is the ruler and protector of this fictional African nation.",
+      "answer": "Wakanda",
       "used": false
     },
     {
       "catIndex": 3,
       "points": 500,
-      "clue": "This Norse god of thunder wields a hammer named Mjolnir.",
-      "answer": "Thor",
+      "clue": "This villain is known for snapping his fingers and has a gauntlet full of Infinity Stones.",
+      "answer": "Thanos",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 100,
-      "clue": "These giant structures were built as tombs for the pharaohs.",
+      "clue": "These monumental structures are found in Giza, built as tombs for Pharaohs.",
       "answer": "Pyramids",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 200,
-      "clue": "This river is the longest in Africa and was crucial to ancient Egyptian civilization.",
+      "clue": "This river was crucial to the development of Ancient Egyptian civilization.",
       "answer": "Nile",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 300,
-      "clue": "This boy pharaoh's intact tomb was discovered by Howard Carter in 1922.",
-      "answer": "Tutankhamun",
+      "clue": "This famous queen was the last active ruler of the Ptolemaic Kingdom of Egypt.",
+      "answer": "Cleopatra",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 400,
-      "clue": "The sacred writing of ancient Egypt was called this.",
+      "clue": "This writing system used by ancient Egyptians employed pictorial symbols.",
       "answer": "Hieroglyphics",
       "used": false
     },
     {
       "catIndex": 4,
       "points": 500,
-      "clue": "This female pharaoh was known for her prosperous reign and monumental building projects.",
-      "answer": "Hatshepsut",
+      "clue": "This young pharaoh's nearly intact tomb was discovered by Howard Carter in 1922.",
+      "answer": "Tutankhamun",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 100,
-      "clue": "This event on December 7, 1941, led the US to enter World War II.",
-      "answer": "Attack on Pearl Harbor",
+      "clue": "This country was led by Adolf Hitler during World War II.",
+      "answer": "Germany",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 200,
-      "clue": "This leader of Germany was a key figure in starting World War II.",
-      "answer": "Adolf Hitler",
+      "clue": "This country experienced the attack on Pearl Harbor, bringing it into the war.",
+      "answer": "United States",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 300,
-      "clue": "This British Prime Minister was famous for his speeches and leadership during the war.",
+      "clue": "This British leader was known for his powerful speeches during the war.",
       "answer": "Winston Churchill",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 400,
-      "clue": "This battle was a turning point in the Pacific, marking the first major defeat for Japan.",
-      "answer": "Battle of Midway",
+      "clue": "The invasion of this country by Germany in 1939 marked the start of World War II.",
+      "answer": "Poland",
       "used": false
     },
     {
       "catIndex": 5,
       "points": 500,
-      "clue": "This operation marked the largest seaborne invasion in history, starting the liberation of Nazi-occupied Europe.",
-      "answer": "D-Day",
+      "clue": "This secret program developed the atomic bombs used during World War II.",
+      "answer": "Manhattan Project",
       "used": false
     }
   ],
