@@ -573,26 +573,87 @@ function clueLeaksAnswer(clue, answer) {
 }
 
 // Flags entries whose clue gives away its own answer, or whose answer
-// duplicates another answer in the same category. Returns a Set of
-// "catIndex|points" keys for entries that should not be trusted.
+// duplicates another answer in the same category. Returns a Map of
+// "catIndex|points" -> reason for entries that should not be trusted.
 function findFlaggedEntries(parsed, categories) {
-  const flagged = new Set();
+  const flagged = new Map();
   categories.forEach((catName, catIndex) => {
     const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
     const answerSeenAt = new Map();
     entries.forEach((entry) => {
       const key = `${catIndex}|${Number(entry.points)}`;
-      if (clueLeaksAnswer(entry.clue, entry.answer)) flagged.add(key);
+      if (clueLeaksAnswer(entry.clue, entry.answer)) {
+        flagged.set(key, 'The clue gives away the answer');
+      }
       const answerKey = String(entry.answer || '').trim().toLowerCase();
       if (!answerKey) return;
       if (answerSeenAt.has(answerKey)) {
-        flagged.add(key);
-        flagged.add(answerSeenAt.get(answerKey));
+        flagged.set(key, 'Duplicate answer used elsewhere in this category');
+        flagged.set(answerSeenAt.get(answerKey), 'Duplicate answer used elsewhere in this category');
       } else {
         answerSeenAt.set(answerKey, key);
       }
     });
   });
+  return flagged;
+}
+
+function buildReviewPrompt(entries) {
+  const listing = entries
+    .map((e) => `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"`)
+    .join('\n\n');
+  return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
+
+For EACH clue/answer pair below, check:
+
+1. CATEGORY FIT — Does the clue clearly and specifically belong to its stated category?
+2. ANSWER LEAK — Does the clue give away the answer, directly or by naming it in another form?
+3. FACTUAL ACCURACY — Is the stated answer actually correct for the clue as written?
+4. UNIQUE ANSWER — Could a different, equally valid answer also fit the clue?
+
+Board:
+
+${listing}
+
+Respond with ONLY raw JSON in exactly this shape (empty array if every entry is fine):
+
+{"problems": [{"category": "ExactCategoryNameAsGiven", "points": 100, "reason": "short explanation"}]}`;
+}
+
+// Second-pass review: sends the generated (mechanically-clean) entries back
+// to the model as a fact-checker/editor and flags anything it objects to.
+// Best-effort — a review failure should not block a successful generation.
+async function reviewGeneratedEntries(entries, categories, apiKey) {
+  const flagged = new Map();
+  if (!entries.length) return flagged;
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: buildReviewPrompt(entries) }],
+      }),
+    });
+    if (!response.ok) return flagged;
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const parsed = extractJson(text);
+    const problems = Array.isArray(parsed.problems) ? parsed.problems : [];
+    problems.forEach((problem) => {
+      const catIndex = categories.indexOf(problem.category);
+      const points = Number(problem.points);
+      if (catIndex === -1 || !POINTS.includes(points)) return;
+      flagged.set(`${catIndex}|${points}`, String(problem.reason || 'Flagged by review pass'));
+    });
+  } catch {
+    // Review is a best-effort second pass; ignore failures.
+  }
   return flagged;
 }
 
@@ -612,7 +673,7 @@ app.post('/api/generate', async (req, res) => {
     const prompt = buildPrompt(categories, ageGroup);
 
     let parsed;
-    let flagged = new Set();
+    let flagged = new Map();
 
     for (let attempt = 1; attempt <= GENERATE_MAX_ATTEMPTS; attempt++) {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -645,6 +706,20 @@ app.post('/api/generate', async (req, res) => {
       if (flagged.size === 0) break;
     }
 
+    // Second-pass review: once the board is otherwise clean, have the model
+    // re-check the surviving entries as an independent editor/fact-checker.
+    const reviewCandidates = [];
+    categories.forEach((catName, catIndex) => {
+      const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
+      entries.forEach((entry) => {
+        const points = Number(entry.points);
+        if (flagged.has(`${catIndex}|${points}`)) return;
+        reviewCandidates.push({ category: catName, points, clue: String(entry.clue || ''), answer: String(entry.answer || '') });
+      });
+    });
+    const reviewFlags = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey);
+    reviewFlags.forEach((reason, key) => flagged.set(key, reason));
+
     for (let c = 0; c < categories.length; c++) {
       const catName = categories[c];
       const entries = parsed[catName];
@@ -666,9 +741,9 @@ app.post('/api/generate', async (req, res) => {
 
     await writeBoard(board);
 
-    const warnings = [...flagged].map((key) => {
+    const warnings = [...flagged.entries()].map(([key, reason]) => {
       const [catIndex, points] = key.split('|');
-      return `${categories[Number(catIndex)]} — $${points}`;
+      return `${categories[Number(catIndex)]} — $${points}: ${reason}`;
     });
 
     res.json({ ...board, warnings });

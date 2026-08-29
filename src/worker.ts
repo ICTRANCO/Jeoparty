@@ -3,6 +3,7 @@ import initialBoard from '../data/board.json';
 
 const DEFAULT_GAME_TITLE = 'JEOPARTY!';
 const MODEL = 'gpt-4o';
+const POINTS = [100, 200, 300, 400, 500];
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
@@ -285,26 +286,96 @@ function clueLeaksAnswer(clue: string, answer: string): boolean {
 }
 
 // Flags entries whose clue gives away its own answer, or whose answer
-// duplicates another answer in the same category. Returns a Set of
-// "catIndex|points" keys for entries that should not be trusted.
-function findFlaggedEntries(parsed: Record<string, GeneratedCell[]>, categories: string[]): Set<string> {
-  const flagged = new Set<string>();
+// duplicates another answer in the same category. Returns a Map of
+// "catIndex|points" -> reason for entries that should not be trusted.
+function findFlaggedEntries(parsed: Record<string, GeneratedCell[]>, categories: string[]): Map<string, string> {
+  const flagged = new Map<string, string>();
   categories.forEach((catName, catIndex) => {
     const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
     const answerSeenAt = new Map<string, string>();
     entries.forEach((entry) => {
       const key = `${catIndex}|${Number(entry.points)}`;
-      if (clueLeaksAnswer(entry.clue, entry.answer)) flagged.add(key);
+      if (clueLeaksAnswer(entry.clue, entry.answer)) {
+        flagged.set(key, 'The clue gives away the answer');
+      }
       const answerKey = String(entry.answer || '').trim().toLowerCase();
       if (!answerKey) return;
       if (answerSeenAt.has(answerKey)) {
-        flagged.add(key);
-        flagged.add(answerSeenAt.get(answerKey) as string);
+        flagged.set(key, 'Duplicate answer used elsewhere in this category');
+        flagged.set(answerSeenAt.get(answerKey) as string, 'Duplicate answer used elsewhere in this category');
       } else {
         answerSeenAt.set(answerKey, key);
       }
     });
   });
+  return flagged;
+}
+
+interface ReviewEntry { category: string; points: number; clue: string; answer: string }
+interface ReviewProblem { category?: string; points?: number; reason?: string }
+interface ReviewResponse { problems?: ReviewProblem[] }
+
+function buildReviewPrompt(entries: ReviewEntry[]): string {
+  const listing = entries
+    .map((e) => `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"`)
+    .join('\n\n');
+  return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
+
+For EACH clue/answer pair below, check:
+
+1. CATEGORY FIT — Does the clue clearly and specifically belong to its stated category?
+2. ANSWER LEAK — Does the clue give away the answer, directly or by naming it in another form?
+3. FACTUAL ACCURACY — Is the stated answer actually correct for the clue as written?
+4. UNIQUE ANSWER — Could a different, equally valid answer also fit the clue?
+
+Board:
+
+${listing}
+
+Respond with ONLY raw JSON in exactly this shape (empty array if every entry is fine):
+
+{"problems": [{"category": "ExactCategoryNameAsGiven", "points": 100, "reason": "short explanation"}]}`;
+}
+
+// Second-pass review: sends the generated (mechanically-clean) entries back
+// to the model as a fact-checker/editor and flags anything it objects to.
+// Best-effort — a review failure should not block a successful generation.
+async function reviewGeneratedEntries(entries: ReviewEntry[], categories: string[], apiKey: string): Promise<Map<string, string>> {
+  const flagged = new Map<string, string>();
+  if (!entries.length) return flagged;
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 2048,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: buildReviewPrompt(entries) }],
+      }),
+    });
+    if (!response.ok) return flagged;
+    const data = await response.json<OpenAiResponse>();
+    const text = data.choices?.[0]?.message?.content || '';
+    let parsed: ReviewResponse;
+    try {
+      parsed = JSON.parse(text) as ReviewResponse;
+    } catch {
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start < 0 || end <= start) return flagged;
+      parsed = JSON.parse(text.slice(start, end + 1)) as ReviewResponse;
+    }
+    const problems = Array.isArray(parsed.problems) ? parsed.problems : [];
+    problems.forEach((problem) => {
+      const catIndex = categories.indexOf(problem.category || '');
+      const points = Number(problem.points);
+      if (catIndex === -1 || !POINTS.includes(points)) return;
+      flagged.set(`${catIndex}|${points}`, String(problem.reason || 'Flagged by review pass'));
+    });
+  } catch {
+    // Review is a best-effort second pass; ignore failures.
+  }
   return flagged;
 }
 
@@ -560,7 +631,7 @@ export class GameRoom extends DurableObject<Env> {
     const prompt = buildPrompt(categories, ageGroup);
 
     let generated: Record<string, GeneratedCell[]> = {};
-    let flagged = new Set<string>();
+    let flagged = new Map<string, string>();
 
     for (let attempt = 1; attempt <= GENERATE_MAX_ATTEMPTS; attempt++) {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -579,6 +650,20 @@ export class GameRoom extends DurableObject<Env> {
       flagged = findFlaggedEntries(generated, categories);
       if (flagged.size === 0) break;
     }
+
+    // Second-pass review: once the board is otherwise clean, have the model
+    // re-check the surviving entries as an independent editor/fact-checker.
+    const reviewCandidates: ReviewEntry[] = [];
+    categories.forEach((category, catIndex) => {
+      const entries = Array.isArray(generated[category]) ? generated[category] : [];
+      entries.forEach((entry) => {
+        const points = Number(entry.points);
+        if (flagged.has(`${catIndex}|${points}`)) return;
+        reviewCandidates.push({ category, points, clue: String(entry.clue || ''), answer: String(entry.answer || '') });
+      });
+    });
+    const reviewFlags = await reviewGeneratedEntries(reviewCandidates, categories, this.config.apiKey);
+    reviewFlags.forEach((reason, key) => flagged.set(key, reason));
 
     categories.forEach((category, catIndex) => {
       const entries = generated[category];
@@ -599,9 +684,9 @@ export class GameRoom extends DurableObject<Env> {
     this.board.ageGroup = ageGroup || this.board.ageGroup;
     await this.ctx.storage.put('board', this.board);
 
-    const warnings = [...flagged].map((key) => {
+    const warnings = [...flagged.entries()].map(([key, reason]) => {
       const [catIndex, points] = key.split('|');
-      return `${categories[Number(catIndex)]} — $${points}`;
+      return `${categories[Number(catIndex)]} — $${points}: ${reason}`;
     });
 
     return json({ ...this.board, warnings });
