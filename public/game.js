@@ -609,9 +609,13 @@ window.addEventListener('keydown', (event) => {
   const key = event.key?.toLowerCase();
   let teamIndex = null;
 
-  if (key === 'a' || event.code === 'KeyA') teamIndex = 0;
-  else if (key === 'b' || event.code === 'KeyB') teamIndex = 1;
-  else if (key === 'l' || event.code === 'KeyL') teamIndex = 2;
+  if (key === '1' || event.code === 'Digit1' || event.code === 'Numpad1' || key === 'a' || event.code === 'KeyA') {
+    teamIndex = 0;
+  } else if (key === '2' || event.code === 'Digit2' || event.code === 'Numpad2' || key === 'b' || event.code === 'KeyB') {
+    teamIndex = 1;
+  } else if (key === '3' || event.code === 'Digit3' || event.code === 'Numpad3' || key === 'l' || event.code === 'KeyL') {
+    teamIndex = 2;
+  }
 
   if (teamIndex === null) return;
 

@@ -729,6 +729,23 @@ textarea {
   text-transform: uppercase;
 }
 
+.qa-cell-low-confidence {
+  border: 1px solid #e94560;
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(233, 69, 96, 0.08);
+}
+
+.qa-cell-low-confidence textarea {
+  border-color: #e94560;
+}
+
+.qa-low-confidence-notice {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ff8a9b;
+}
+
 .spinner {
   display: inline-block;
   width: 14px;

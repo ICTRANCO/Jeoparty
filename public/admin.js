@@ -107,6 +107,12 @@ function renderQaTable() {
 
       const wrap = document.createElement('div');
       wrap.className = 'qa-cell';
+      wrap.classList.toggle('qa-cell-low-confidence', Boolean(cell.lowConfidence));
+
+      const lowConfidenceNotice = document.createElement('div');
+      lowConfidenceNotice.className = 'qa-low-confidence-notice';
+      lowConfidenceNotice.textContent = '⚠ Low confidence — please review';
+      lowConfidenceNotice.hidden = !cell.lowConfidence;
 
       const clueLabel = document.createElement('div');
       clueLabel.className = 'qa-label';
@@ -148,6 +154,9 @@ function renderQaTable() {
           const updated = await res.json();
           cell.clue = updated.clue;
           cell.answer = updated.answer;
+          cell.lowConfidence = updated.lowConfidence;
+          wrap.classList.toggle('qa-cell-low-confidence', Boolean(updated.lowConfidence));
+          lowConfidenceNotice.hidden = !updated.lowConfidence;
           setStatus(cellStatus, 'Saved', 'ok');
         } catch (err) {
           setStatus(cellStatus, err.message, 'error');
@@ -156,6 +165,7 @@ function renderQaTable() {
         }
       });
 
+      wrap.appendChild(lowConfidenceNotice);
       wrap.appendChild(clueLabel);
       wrap.appendChild(clueBox);
       wrap.appendChild(answerLabel);

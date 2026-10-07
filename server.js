@@ -37,7 +37,7 @@ function defaultBoard() {
   const cells = [];
   for (let c = 0; c < NUM_CATEGORIES; c++) {
     for (const points of POINTS) {
-      cells.push({ catIndex: c, points, clue: '', answer: '', used: false });
+      cells.push({ catIndex: c, points, clue: '', answer: '', used: false, lowConfidence: false });
     }
   }
   const categoryNotes = Array.from({ length: NUM_CATEGORIES }, () => '');
@@ -72,6 +72,11 @@ async function readBoard() {
   }
   if (!Array.isArray(board.categoryNotes) || board.categoryNotes.length !== NUM_CATEGORIES) {
     board.categoryNotes = Array.from({ length: NUM_CATEGORIES }, (_, i) => String(board.categoryNotes?.[i] || ''));
+  }
+  if (Array.isArray(board.cells)) {
+    board.cells.forEach((cell) => {
+      if (typeof cell.lowConfidence !== 'boolean') cell.lowConfidence = false;
+    });
   }
   if (board.questionTimerSeconds !== null && !Number.isFinite(board.questionTimerSeconds)) board.questionTimerSeconds = 5;
   if (board.buzzTimerSeconds !== null && !Number.isFinite(board.buzzTimerSeconds)) board.buzzTimerSeconds = 5;
@@ -171,6 +176,7 @@ app.put('/api/board/cell', async (req, res) => {
   if (!cell) return res.status(404).json({ error: 'cell not found' });
   if (typeof clue === 'string') cell.clue = clue;
   if (typeof answer === 'string') cell.answer = answer;
+  cell.lowConfidence = false;
   await writeBoard(board);
   res.json(cell);
 });
@@ -651,10 +657,10 @@ Respond with ONLY raw JSON in exactly this shape (empty array if every entry is 
 // anything else it objects to on its own (category fit, factual accuracy,
 // ambiguity) is flagged and replaced too. Returns a Map of "catIndex|points"
 // -> { reason, clue, answer } (clue/answer are '' if no replacement was
-// produced). Best-effort — a review failure should not block generation.
+// produced). Returns null (distinct from an empty Map) if the call itself
+// failed, so callers can tell "nothing wrong" apart from "couldn't check".
 async function reviewGeneratedEntries(entries, categories, apiKey) {
-  const flagged = new Map();
-  if (!entries.length) return flagged;
+  if (!entries.length) return new Map();
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -669,10 +675,11 @@ async function reviewGeneratedEntries(entries, categories, apiKey) {
         messages: [{ role: 'user', content: buildReviewPrompt(entries) }],
       }),
     });
-    if (!response.ok) return flagged;
+    if (!response.ok) return null;
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
     const parsed = extractJson(text);
+    const flagged = new Map();
     const problems = Array.isArray(parsed.problems) ? parsed.problems : [];
     problems.forEach((problem) => {
       const catIndex = categories.indexOf(problem.category);
@@ -684,13 +691,25 @@ async function reviewGeneratedEntries(entries, categories, apiKey) {
         answer: String(problem.answer || ''),
       });
     });
+    return flagged;
   } catch {
-    // Review is a best-effort second pass; ignore failures.
+    return null;
   }
-  return flagged;
 }
 
 const GENERATE_MAX_ATTEMPTS = 2;
+const REPAIR_MAX_ATTEMPTS = 5;
+
+function toParsedShape(entryMap, categories) {
+  const shape = {};
+  categories.forEach((catName, catIndex) => {
+    shape[catName] = POINTS.map((points) => {
+      const entry = entryMap.get(`${catIndex}|${points}`) || { clue: '', answer: '' };
+      return { points, clue: entry.clue, answer: entry.answer };
+    });
+  });
+  return shape;
+}
 
 app.post('/api/generate', async (req, res) => {
   try {
@@ -740,68 +759,98 @@ app.post('/api/generate', async (req, res) => {
       if (flagged.size === 0) break;
     }
 
-    // Second-pass review: send the whole board to the model as an
-    // independent editor/fact-checker. Entries the mechanical check already
-    // flagged are marked as known issues so it replaces them outright;
-    // anything else it objects to gets replaced too.
-    const reviewCandidates = [];
+    // Flat working copy of every generated entry, keyed by "catIndex|points",
+    // that the repair rounds below read from and write back into.
+    const entryMap = new Map();
     categories.forEach((catName, catIndex) => {
       const entries = Array.isArray(parsed[catName]) ? parsed[catName] : [];
       entries.forEach((entry) => {
         const points = Number(entry.points);
-        const key = `${catIndex}|${points}`;
-        reviewCandidates.push({
-          category: catName,
-          points,
-          clue: String(entry.clue || ''),
-          answer: String(entry.answer || ''),
-          categoryNote: categoryNotes && categoryNotes[catIndex] ? String(categoryNotes[catIndex]).trim() : '',
-          knownIssue: flagged.get(key) || null,
-        });
+        entryMap.set(`${catIndex}|${points}`, { clue: String(entry.clue || ''), answer: String(entry.answer || '') });
       });
     });
-    const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey);
 
-    // Resolve every flagged entry to either a validated replacement or a
-    // blank (if no usable replacement came back).
-    const resolutions = new Map();
-    flagged.forEach((reason, key) => resolutions.set(key, { reason, clue: '', answer: '' }));
-    reviewResults.forEach((result, key) => resolutions.set(key, result));
-    resolutions.forEach((resolution) => {
-      if (resolution.clue && resolution.answer && clueLeaksAnswer(resolution.clue, resolution.answer)) {
-        resolution.clue = '';
-        resolution.answer = '';
-      }
+    // Iterative review-and-repair: each round sends the model an independent
+    // editor pass over every entry still unresolved (plus its category peers,
+    // for duplicate-answer context). A round's silence on a given entry IS
+    // the confirmation that it's now fine — that's what drops it out of the
+    // active set. An entry that's flagged again (even after a fix was
+    // applied) stays active for another round. Repeats up to
+    // REPAIR_MAX_ATTEMPTS times; whatever is still active afterward keeps
+    // its current (possibly imperfect) content but is marked low-confidence
+    // for the admin to spot-check, rather than being blanked out.
+    // Round 1 always covers the whole board (matching a plain independent
+    // review pass, even when the mechanical check found nothing); later
+    // rounds only revisit what's still actively flagged.
+    const everFlagged = new Map();
+    let activeKeys = new Set(entryMap.keys());
+    let reasonMap = new Map(flagged);
+
+    for (let round = 1; round <= REPAIR_MAX_ATTEMPTS && activeKeys.size > 0; round++) {
+      const activeCatIndexes = new Set([...activeKeys].map((key) => Number(key.split('|')[0])));
+      const reviewCandidates = [];
+      categories.forEach((catName, catIndex) => {
+        if (!activeCatIndexes.has(catIndex)) return;
+        POINTS.forEach((points) => {
+          const key = `${catIndex}|${points}`;
+          const entry = entryMap.get(key);
+          if (!entry) return;
+          reviewCandidates.push({
+            category: catName,
+            points,
+            clue: entry.clue,
+            answer: entry.answer,
+            categoryNote: categoryNotes && categoryNotes[catIndex] ? String(categoryNotes[catIndex]).trim() : '',
+            knownIssue: activeKeys.has(key) ? reasonMap.get(key) : null,
+          });
+        });
+      });
+
+      const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey);
+      if (reviewResults === null) continue; // call failed; retry next round with the same active set
+
+      const newActive = new Set();
+      reviewResults.forEach((result, key) => {
+        reasonMap.set(key, result.reason);
+        everFlagged.set(key, result.reason);
+        const applied = result.clue && result.answer && !clueLeaksAnswer(result.clue, result.answer);
+        if (applied) entryMap.set(key, { clue: result.clue, answer: result.answer });
+        newActive.add(key);
+      });
+      activeKeys = newActive;
+      reasonMap = new Map([...reasonMap].filter(([key]) => activeKeys.has(key)));
+    }
+
+    // Safety net: re-run the deterministic leak/duplicate check across the
+    // final board even if review considers everything resolved, and force
+    // anything it still catches into the low-confidence set.
+    findFlaggedEntries(toParsedShape(entryMap, categories), categories).forEach((reason, key) => {
+      activeKeys.add(key);
+      if (!everFlagged.has(key)) everFlagged.set(key, reason);
     });
 
-    for (let c = 0; c < categories.length; c++) {
-      const catName = categories[c];
-      const entries = parsed[catName];
-      if (!Array.isArray(entries)) continue;
-      for (const entry of entries) {
-        const points = Number(entry.points);
-        const cell = cellFor(board, c, points);
-        if (!cell) continue;
-        const resolution = resolutions.get(`${c}|${points}`);
-        if (resolution) {
-          cell.clue = resolution.clue;
-          cell.answer = resolution.answer;
-        } else {
-          cell.clue = String(entry.clue || '');
-          cell.answer = String(entry.answer || '');
-        }
-      }
-    }
+    categories.forEach((catName, catIndex) => {
+      POINTS.forEach((points) => {
+        const key = `${catIndex}|${points}`;
+        const entry = entryMap.get(key);
+        if (!entry) return;
+        const cell = cellFor(board, catIndex, points);
+        if (!cell) return;
+        cell.clue = entry.clue;
+        cell.answer = entry.answer;
+        cell.lowConfidence = activeKeys.has(key);
+      });
+    });
     board.ageGroup = ageGroup || board.ageGroup;
 
     await writeBoard(board);
 
-    const warnings = [...resolutions.entries()].map(([key, resolution]) => {
+    const warnings = [...everFlagged.entries()].map(([key, reason]) => {
       const [catIndex, points] = key.split('|');
       const label = `${categories[Number(catIndex)]} — $${points}`;
-      return resolution.clue && resolution.answer
-        ? `${label}: replaced (${resolution.reason})`
-        : `${label}: left blank, please write your own (${resolution.reason})`;
+      return activeKeys.has(key)
+        ? `${label}: low confidence after ${REPAIR_MAX_ATTEMPTS} review attempts — please check (${reason})`
+        : `${label}: replaced (${reason})`;
     });
 
     res.json({ ...board, warnings });
