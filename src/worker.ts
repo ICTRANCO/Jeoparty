@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import initialBoard from '../data/board.json';
+import clueWritingGuide from '../README.md';
 
 const DEFAULT_GAME_TITLE = 'JEOPARTY!';
 const MODEL = 'gpt-4o';
@@ -56,6 +57,12 @@ ${categoryListing}
 
 Audience / age group:
 ${age}
+
+## README.md CLUE-WRITING GUIDE
+
+Follow the repository README guidance below when writing clues and answers. Adapt vocabulary, background knowledge, examples, and expected difficulty to the stated audience's age; do not default to adult-level knowledge when an age group is supplied.
+
+${clueWritingGuide}
 
 For EACH category, create exactly 5 clues, one for each point value: 100, 200, 300, 400, and 500.
 
@@ -324,7 +331,7 @@ function findFlaggedEntries(parsed: Record<string, GeneratedCell[]>, categories:
   return flagged;
 }
 
-interface ReviewEntry { category: string; points: number; clue: string; answer: string; categoryNote?: string; knownIssue?: string | null }
+interface ReviewEntry { category: string; points: number; clue: string; answer: string; categoryNote?: string; knownIssue?: string | null; ageGroup?: string }
 interface ReviewProblem { category?: string; points?: number; reason?: string; clue?: string; answer?: string }
 interface ReviewResponse { problems?: ReviewProblem[] }
 interface Resolution { reason: string; clue: string; answer: string }
@@ -334,10 +341,14 @@ function buildReviewPrompt(entries: ReviewEntry[]): string {
     .map((e) => {
       const guidance = e.categoryNote ? `\nCategory guidance: ${e.categoryNote}` : '';
       const hint = e.knownIssue ? `\nKNOWN ISSUE: ${e.knownIssue} — this entry MUST be replaced.` : '';
-      return `Category: "${e.category}" | Points: ${e.points}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${guidance}${hint}`;
+      return `Category: "${e.category}" | Points: ${e.points}\nAudience / age group: ${e.ageGroup || 'general adult audience'}\nClue: "${e.clue}"\nAnswer: "${e.answer}"${guidance}${hint}`;
     })
     .join('\n\n');
   return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
+
+Follow the README.md clue-writing guidance below while reviewing and repairing entries. In particular, judge vocabulary, required knowledge, and each point value's difficulty for the stated audience, not for adults by default.
+
+${clueWritingGuide}
 
 For EACH clue/answer pair below, check:
 
@@ -480,7 +491,7 @@ export class GameRoom extends DurableObject<Env> {
   async webSocketMessage(_socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string') return;
     try {
-      const command = JSON.parse(message) as { type?: string };
+      const command = JSON.parse(message) as { type?: string; teamIndex?: number };
       if (command.type === 'start-buzzers') {
         this.broadcast({ type: 'buzzers-ready', sentAt: Date.now() });
       } else if (command.type === 'buzzer-state') {
@@ -496,7 +507,7 @@ export class GameRoom extends DurableObject<Env> {
           sentAt: Date.now(),
         });
       } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'times-up', 'close-question'].includes(command.type || '')) {
-        this.broadcast({ type: command.type, sentAt: Date.now() });
+        this.broadcast({ type: command.type, teamIndex: command.teamIndex, sentAt: Date.now() });
       }
     } catch {
       // Ignore malformed remote-control messages.
@@ -745,6 +756,7 @@ export class GameRoom extends DurableObject<Env> {
             answer: entry.answer,
             categoryNote: categoryNotes && categoryNotes[catIndex] ? String(categoryNotes[catIndex]).trim() : '',
             knownIssue: activeKeys.has(key) ? reasonMap.get(key) : null,
+            ageGroup: ageGroup.trim() || this.board.ageGroup.trim() || 'general adult audience',
           });
         });
       });

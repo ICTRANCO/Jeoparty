@@ -34,6 +34,7 @@ let audioContext = null;
 let questionLocked = false;
 let timerTimeout = null;
 let timerGeneration = 0;
+const heldBuzzerKeys = new Set();
 
 function getAudioContext() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -206,8 +207,9 @@ function connectRemoteControls() {
       revealAnswerBtn.click();
     } else if (message.type === 'score-correct' && buzzerWinner !== null) {
       applyScore(buzzerWinner, true);
-    } else if (message.type === 'score-incorrect' && buzzerWinner !== null) {
-      applyScore(buzzerWinner, false);
+    } else if (message.type === 'score-incorrect') {
+      const teamIndex = Number.isInteger(message.teamIndex) ? message.teamIndex : buzzerWinner;
+      if (teamIndex !== null) applyScore(teamIndex, false);
     } else if (message.type === 'times-up') {
       handleTimesUp();
     } else if (message.type === 'close-question') {
@@ -602,7 +604,6 @@ questionBackBtn.addEventListener('click', async () => {
 });
 
 window.addEventListener('keydown', (event) => {
-  if (!activeCell) return;
   if (event.target && ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
   if (event.repeat) return;
 
@@ -619,9 +620,20 @@ window.addEventListener('keydown', (event) => {
 
   if (teamIndex === null) return;
 
+  const keyId = event.code || `key:${key}`;
+  if (heldBuzzerKeys.has(keyId)) return;
+  heldBuzzerKeys.add(keyId);
   event.preventDefault();
   handleBuzz(teamIndex);
 });
+
+window.addEventListener('keyup', (event) => {
+  const key = event.key?.toLowerCase();
+  const keyId = event.code || `key:${key}`;
+  heldBuzzerKeys.delete(keyId);
+});
+
+window.addEventListener('blur', () => heldBuzzerKeys.clear());
 
 resetBtn.addEventListener('click', async () => {
   if (!confirm('Start a new game? This clears which squares have been played and resets scores to 0 (questions and team names stay the same).')) return;

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jeoparty Admin</title>
-<link rel="stylesheet" href="styles.css?v=16" />
+<link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
 <div class="topbar">
@@ -31,7 +31,11 @@
   <div class="panel">
     <h2>Categories</h2>
     <div class="field-row" id="category-inputs"></div>
-    <button class="btn" id="save-categories-btn">Save Categories</button>
+    <div class="category-actions">
+      <button class="btn" id="save-categories-btn">Save Categories</button>
+      <button class="btn secondary" id="clear-categories-btn">Clear Categories &amp; Guidance</button>
+      <button class="btn secondary" id="undo-clear-categories-btn" disabled>Undo Clear</button>
+    </div>
     <div class="status-msg" id="category-status"></div>
   </div>
 
@@ -105,6 +109,6 @@
 
 </div>
 
-<script src="admin.js?v=2"></script>
+<script src="admin.js?v=3"></script>
 </body>
 </html>

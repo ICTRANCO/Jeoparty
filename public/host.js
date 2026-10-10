@@ -22,6 +22,8 @@ const commandMessages = {
 };
 
 let currentChooser = null;
+let currentQuestion = null;
+let currentBoard = null;
 
 function renderBuzzer(buzzer, chooser = currentChooser) {
   buzzerAlert.textContent = buzzer
@@ -36,7 +38,9 @@ function renderBuzzer(buzzer, chooser = currentChooser) {
 
 function render(state) {
   const question = state?.question;
+  currentQuestion = question || null;
   currentChooser = state?.chooser || null;
+  if (currentBoard) renderScoreAdjustments(currentBoard);
   renderBuzzer(state?.buzzer, currentChooser);
   emptyState.classList.toggle('hidden', Boolean(question));
   questionView.classList.toggle('hidden', !question);
@@ -75,9 +79,28 @@ function renderScoreAdjustments(board) {
     const add = document.createElement('button');
     add.className = 'host-score-adjust-btn add';
     add.textContent = '+100';
+    const wrongAnswerPoints = currentQuestion?.points;
+    const wrongAnswer = document.createElement('button');
+    wrongAnswer.className = 'host-score-adjust-btn wrong-answer';
+    wrongAnswer.textContent = wrongAnswerPoints ? `Wrong −${wrongAnswerPoints}` : 'Wrong answer';
+    wrongAnswer.title = wrongAnswerPoints
+      ? `Deduct ${wrongAnswerPoints} points from ${team.name} for a wrong answer`
+      : 'Open a question to enable wrong-answer deductions';
+    wrongAnswer.disabled = !wrongAnswerPoints;
 
-    [subtract, add].forEach((button) => {
+    [subtract, add, wrongAnswer].forEach((button) => {
       button.addEventListener('click', async () => {
+        if (button === wrongAnswer) {
+          if (!socket || socket.readyState !== WebSocket.OPEN) {
+            commandStatus.textContent = 'Game connection is not ready';
+            return;
+          }
+          controls.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+          commandStatus.textContent = `Marking ${team.name} incorrect…`;
+          socket.send(JSON.stringify({ type: 'score-incorrect', teamIndex }));
+          return;
+        }
+
         controls.querySelectorAll('button').forEach((item) => { item.disabled = true; });
         const delta = button === add ? 100 : -100;
         const res = await fetch('/api/board/score-adjust', {
@@ -90,12 +113,13 @@ function renderScoreAdjustments(board) {
           controls.querySelectorAll('button').forEach((item) => { item.disabled = false; });
           return;
         }
-        renderScoreAdjustments(await res.json());
+        currentBoard = await res.json();
+        renderScoreAdjustments(currentBoard);
         commandStatus.textContent = `${team.name} ${delta > 0 ? '+' : '−'}100`;
       });
     });
 
-    controls.append(subtract, add);
+    controls.append(subtract, add, wrongAnswer);
     card.append(name, total, controls);
     scoreAdjustGrid.appendChild(card);
   });
@@ -105,6 +129,7 @@ async function loadBoardState() {
   const res = await fetch('/api/board');
   if (!res.ok) return;
   const board = await res.json();
+  currentBoard = board;
   gameTitleEl.textContent = board.gameTitle || 'JEOPARTY!';
   document.title = `${board.gameTitle || 'Jeoparty'} Host View`;
   renderScoreAdjustments(board);
@@ -131,7 +156,9 @@ function connect() {
       return;
     }
     if (commandMessages[message.type]) {
-      commandStatus.textContent = commandMessages[message.type];
+      commandStatus.textContent = message.type === 'score-incorrect' && Number.isInteger(message.teamIndex)
+        ? `${currentBoard?.teams[message.teamIndex]?.name || 'Player'} marked incorrect`
+        : commandMessages[message.type];
       if (message.type === 'buzzers-ready') buzzersBtn.classList.add('active');
       return;
     }

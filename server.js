@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3131;
 const DATA_DIR = path.join(__dirname, 'data');
 const BOARD_PATH = path.join(DATA_DIR, 'board.json');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
+const README_PATH = path.join(__dirname, 'README.md');
 
 const POINTS = [100, 200, 300, 400, 500];
 const NUM_CATEGORIES = 6;
@@ -326,7 +327,7 @@ app.delete('/api/config/apikey', async (req, res) => {
 
 // ---- AI generation ----
 
-function buildPrompt(categories, ageGroup, categoryNotes) {
+function buildPrompt(categories, ageGroup, categoryNotes, clueWritingGuide) {
   const age = ageGroup && ageGroup.trim() ? ageGroup.trim() : 'general adult audience';
   const categoryListing = categories
     .map((c, i) => {
@@ -350,6 +351,12 @@ ${categoryListing}
 
 Audience / age group:
 ${age}
+
+## README.md CLUE-WRITING GUIDE
+
+Follow the repository README guidance below when writing clues and answers. Adapt vocabulary, background knowledge, examples, and expected difficulty to the stated audience's age; do not default to adult-level knowledge when an age group is supplied.
+
+${clueWritingGuide}
 
 For EACH category, create exactly 5 clues, one for each point value: 100, 200, 300, 400, and 500.
 
@@ -621,7 +628,7 @@ function findFlaggedEntries(parsed, categories) {
   return flagged;
 }
 
-function buildReviewPrompt(entries) {
+function buildReviewPrompt(entries, clueWritingGuide, ageGroup) {
   const listing = entries
     .map((e) => {
       const guidance = e.categoryNote ? `\nCategory guidance: ${e.categoryNote}` : '';
@@ -630,6 +637,12 @@ function buildReviewPrompt(entries) {
     })
     .join('\n\n');
   return `You are a strict fact-checker and editor doing a final review of a finished Jeopardy-style trivia board before it is used in a live game.
+
+Intended audience / age group: ${ageGroup}
+
+Follow the README.md clue-writing guidance below while reviewing and repairing entries. In particular, judge vocabulary, required knowledge, and each point value's difficulty for this audience, not for adults by default.
+
+${clueWritingGuide}
 
 For EACH clue/answer pair below, check:
 
@@ -659,7 +672,7 @@ Respond with ONLY raw JSON in exactly this shape (empty array if every entry is 
 // -> { reason, clue, answer } (clue/answer are '' if no replacement was
 // produced). Returns null (distinct from an empty Map) if the call itself
 // failed, so callers can tell "nothing wrong" apart from "couldn't check".
-async function reviewGeneratedEntries(entries, categories, apiKey) {
+async function reviewGeneratedEntries(entries, categories, apiKey, clueWritingGuide, ageGroup) {
   if (!entries.length) return new Map();
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -672,7 +685,7 @@ async function reviewGeneratedEntries(entries, categories, apiKey) {
         model: MODEL,
         max_tokens: 3072,
         response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: buildReviewPrompt(entries) }],
+        messages: [{ role: 'user', content: buildReviewPrompt(entries, clueWritingGuide, ageGroup) }],
       }),
     });
     if (!response.ok) return null;
@@ -720,10 +733,12 @@ app.post('/api/generate', async (req, res) => {
 
     const board = await readBoard();
     const { ageGroup } = req.body;
+    const audience = String(ageGroup || board.ageGroup || '').trim() || 'general adult audience';
     const categories = board.categories;
     const categoryNotes = board.categoryNotes;
 
-    const prompt = buildPrompt(categories, ageGroup, categoryNotes);
+    const clueWritingGuide = await fs.readFile(README_PATH, 'utf-8');
+    const prompt = buildPrompt(categories, audience, categoryNotes, clueWritingGuide);
 
     let parsed;
     let flagged = new Map();
@@ -806,7 +821,7 @@ app.post('/api/generate', async (req, res) => {
         });
       });
 
-      const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey);
+      const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, config.apiKey, clueWritingGuide, audience);
       if (reviewResults === null) continue; // call failed; retry next round with the same active set
 
       const newActive = new Set();
@@ -882,7 +897,7 @@ ensureDataFiles().then(() => {
             sentAt: Date.now(),
           });
         } else if (['reveal-answer', 'score-correct', 'score-incorrect', 'times-up', 'close-question'].includes(message.type)) {
-          broadcastRealtime({ type: message.type, sentAt: Date.now() });
+          broadcastRealtime({ type: message.type, teamIndex: message.teamIndex, sentAt: Date.now() });
         }
       } catch {}
     });

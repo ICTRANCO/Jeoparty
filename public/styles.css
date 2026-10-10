@@ -617,6 +617,12 @@ body {
   margin-bottom: 12px;
 }
 
+.category-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -799,14 +805,16 @@ textarea {
 .host-command-status { min-height: 1.3em; margin-top: 12px; color: #cbd0ff; font-size: 0.9rem; }
 .host-score-adjustments { margin-top: 48px; padding-top: 28px; border-top: 1px solid rgba(255, 255, 255, 0.18); }
 .host-score-adjustments h2 { margin: 6px 0 16px; color: var(--white); }
+.host-score-adjust-help { margin: -8px 0 18px; color: #cbd0ff; font-size: 0.9rem; }
 .host-score-adjust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .host-score-adjust-card { display: grid; gap: 12px; padding: 18px; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 14px; background: rgba(255, 255, 255, 0.07); text-align: center; }
 .host-score-adjust-card strong { color: var(--white); font-size: 1.05rem; }
 .host-score-adjust-total { color: var(--gold); font-size: 2rem; font-weight: 900; }
-.host-score-adjust-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.host-score-adjust-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .host-score-adjust-btn { border: 0; border-radius: 9px; padding: 12px; color: var(--white); font: inherit; font-weight: 900; cursor: pointer; }
 .host-score-adjust-btn.add { background: #218c4b; }
 .host-score-adjust-btn.subtract { background: #c93449; }
+.host-score-adjust-btn.wrong-answer { background: #8d2638; }
 .host-score-adjust-btn:hover:not(:disabled) { filter: brightness(1.15); }
 .host-score-adjust-btn:disabled { opacity: 0.5; cursor: wait; }
 

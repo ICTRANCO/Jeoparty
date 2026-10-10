@@ -6,6 +6,8 @@ const titleStatus = document.getElementById('title-status');
 
 const categoryInputsEl = document.getElementById('category-inputs');
 const saveCategoriesBtn = document.getElementById('save-categories-btn');
+const clearCategoriesBtn = document.getElementById('clear-categories-btn');
+const undoClearCategoriesBtn = document.getElementById('undo-clear-categories-btn');
 const categoryStatus = document.getElementById('category-status');
 const questionTimerInput = document.getElementById('question-timer');
 const buzzTimerInput = document.getElementById('buzz-timer');
@@ -23,6 +25,7 @@ const generateStatus = document.getElementById('generate-status');
 const qaTable = document.getElementById('qa-table');
 
 let board = null;
+let clearedCategoryValues = null;
 
 function setStatus(el, message, type) {
   el.textContent = message;
@@ -75,6 +78,22 @@ function renderCategoryInputs() {
     field.appendChild(notesLabel);
     field.appendChild(notesBox);
     categoryInputsEl.appendChild(field);
+  });
+}
+
+function getCategoryFieldValues() {
+  return {
+    categories: Array.from(categoryInputsEl.querySelectorAll('input')).map((input) => input.value),
+    categoryNotes: Array.from(categoryInputsEl.querySelectorAll('.category-notes-input')).map((input) => input.value),
+  };
+}
+
+function setCategoryFieldValues(values) {
+  categoryInputsEl.querySelectorAll('input').forEach((input, index) => {
+    input.value = values.categories[index] || '';
+  });
+  categoryInputsEl.querySelectorAll('.category-notes-input').forEach((input, index) => {
+    input.value = values.categoryNotes[index] || '';
   });
 }
 
@@ -213,6 +232,10 @@ saveCategoriesBtn.addEventListener('click', async () => {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     board = await res.json();
+    clearedCategoryValues = null;
+    clearCategoriesBtn.disabled = false;
+    undoClearCategoriesBtn.disabled = true;
+    renderCategoryInputs();
     renderQaTable();
     setStatus(categoryStatus, 'Categories saved.', 'ok');
   } catch (err) {
@@ -220,6 +243,23 @@ saveCategoriesBtn.addEventListener('click', async () => {
   } finally {
     saveCategoriesBtn.disabled = false;
   }
+});
+
+clearCategoriesBtn.addEventListener('click', () => {
+  clearedCategoryValues = getCategoryFieldValues();
+  setCategoryFieldValues({ categories: [], categoryNotes: [] });
+  clearCategoriesBtn.disabled = true;
+  undoClearCategoriesBtn.disabled = false;
+  setStatus(categoryStatus, 'Category and AI guidance fields cleared. Save Categories to apply, or undo to restore them.', 'ok');
+});
+
+undoClearCategoriesBtn.addEventListener('click', () => {
+  if (!clearedCategoryValues) return;
+  setCategoryFieldValues(clearedCategoryValues);
+  clearedCategoryValues = null;
+  clearCategoriesBtn.disabled = false;
+  undoClearCategoriesBtn.disabled = true;
+  setStatus(categoryStatus, 'Cleared category fields restored.', 'ok');
 });
 
 saveTimersBtn.addEventListener('click', async () => {
