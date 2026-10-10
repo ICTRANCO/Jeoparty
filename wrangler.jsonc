@@ -1,9 +1,12 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "jeoparty-game",
+  "name": "gameshowapp",
   "main": "src/worker.ts",
   "compatibility_date": "2026-08-08",
   "compatibility_flags": ["nodejs_compat"],
+  "rules": [
+    { "type": "Text", "globs": ["**/*.md"], "fallthrough": false }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
