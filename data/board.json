@@ -1,241 +1,931 @@
 {
   "categories": [
-    "Science",
-    "math",
-    "Dog Man Comics",
-    "Marvel Super Heroes",
-    "Egyptian history",
-    "World War II"
+    "YouTube Creator Initials",
+    "Asian Food Ingredients",
+    "Minecraft Dimensions",
+    "One Letter Off",
+    "Name That Snack",
+    "What Comes Next?"
   ],
   "ageGroup": "6-10 year olds",
   "cells": [
     {
       "catIndex": 0,
-      "points": 100,
-      "clue": "This star is at the center of our solar system.",
-      "answer": "Sun",
-      "used": false
-    },
-    {
-      "catIndex": 0,
       "points": 200,
-      "clue": "These are the only planets in our solar system without moons.",
-      "answer": "Mercury and Venus",
-      "used": false
-    },
-    {
-      "catIndex": 0,
-      "points": 300,
-      "clue": "These animals can change their skin color to match their surroundings.",
-      "answer": "Chameleons",
-      "used": false
+      "clue": "Which creator called MrBeast uses the initials MB?",
+      "answer": "MrBeast",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 0,
       "points": 400,
-      "clue": "This force keeps us from floating into space while standing on Earth.",
-      "answer": "Gravity",
-      "used": false
+      "clue": "Which creator duo with the initials VN has Vlad as the first name?",
+      "answer": "Vlad & Niki",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 0,
-      "points": 500,
-      "clue": "This device measures atmospheric pressure and is used in weather forecasting.",
-      "answer": "Barometer",
-      "used": false
+      "points": 600,
+      "clue": "Which title with the initials KDS includes the name Diana?",
+      "answer": "Kids Diana Show",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
-      "catIndex": 1,
-      "points": 100,
-      "clue": "This is the value of pi rounded to three decimal places.",
-      "answer": "3.142",
-      "used": false
+      "catIndex": 0,
+      "points": 800,
+      "clue": "Which two-word channel title abbreviated LN includes Nastya?",
+      "answer": "Like Nastya",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 0,
+      "points": 1000,
+      "clue": "Which channel abbreviated TC pairs a word for playthings with a word for shades and hues?",
+      "answer": "Toys and Colors",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 1,
       "points": 200,
-      "clue": "This addition process always produces the same result when reversed.",
-      "answer": "Commutative property",
-      "used": false
-    },
-    {
-      "catIndex": 1,
-      "points": 300,
-      "clue": "This is what you call a polygon with six sides.",
-      "answer": "Hexagon",
-      "used": false
+      "clue": "What fruit tops the Thai dessert mango sticky rice?",
+      "answer": "Mango",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 1,
       "points": 400,
-      "clue": "The bottom number of a fraction, indicating total parts, is called this.",
-      "answer": "Denominator",
-      "used": false
+      "clue": "What legume is commonly crushed over pad Thai?",
+      "answer": "Peanut",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 1,
-      "points": 500,
-      "clue": "This mathematical symbol represents the square root of -1.",
-      "answer": "i",
-      "used": false
+      "points": 600,
+      "clue": "What grain is the main ingredient in traditional mochi?",
+      "answer": "Glutinous rice (accept rice)",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
-      "catIndex": 2,
-      "points": 100,
-      "clue": "This character is the main hero, who is part dog and part man.",
-      "answer": "Dog Man",
-      "used": false
+      "catIndex": 1,
+      "points": 800,
+      "clue": "What type of seafood is commonly found inside takoyaki?",
+      "answer": "Octopus",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 1,
+      "points": 1000,
+      "clue": "What type of bean is the main ingredient in miso paste?",
+      "answer": "Soybean",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 2,
       "points": 200,
-      "clue": "Dog Man's sidekick, who is a witty cat and a loyal friend.",
-      "answer": "Petey",
-      "used": false
-    },
-    {
-      "catIndex": 2,
-      "points": 300,
-      "clue": "This young, enthusiastic boy helps Dog Man with his comic-making skills.",
-      "answer": "Li'l Petey",
-      "used": false
+      "clue": "Starting dimension.",
+      "answer": "Overworld",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 2,
       "points": 400,
-      "clue": "In the books, Dog Man works as a police officer in this position.",
-      "answer": "Officer (cop)",
-      "used": false
+      "clue": "Fiery dimension reached through a portal framed in obsidian.",
+      "answer": "Nether",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 2,
-      "points": 500,
-      "clue": "The name of the robot buddy who assists Dog Man and his friends.",
-      "answer": "80-HD",
-      "used": false
+      "points": 600,
+      "clue": "Dimension where you fight the Ender Dragon.",
+      "answer": "The End",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
-      "catIndex": 3,
-      "points": 100,
-      "clue": "This superhero has a shield and is known as the First Avenger.",
-      "answer": "Captain America",
-      "used": false
+      "catIndex": 2,
+      "points": 800,
+      "clue": "Purple blocks that appear inside an active obsidian portal belong to this portal type.",
+      "answer": "Nether portal",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 2,
+      "points": 1000,
+      "clue": "Small portals that lead between the main End island and outer End islands.",
+      "answer": "End gateways",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 3,
       "points": 200,
-      "clue": "This Marvel hero swings through the city using webs.",
-      "answer": "Spider-Man",
-      "used": false
-    },
-    {
-      "catIndex": 3,
-      "points": 300,
-      "clue": "Tony Stark becomes this high-tech armored superhero.",
-      "answer": "Iron Man",
-      "used": false
+      "clue": "Turn a pet that purrs into something you wear on your head.",
+      "answer": "Cat → hat",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 3,
       "points": 400,
-      "clue": "The Black Panther is the ruler and protector of this fictional African nation.",
-      "answer": "Wakanda",
-      "used": false
+      "clue": "Turn a writing tool into a farm bird.",
+      "answer": "Pen → hen",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 3,
-      "points": 500,
-      "clue": "This villain is known for snapping his fingers and has a gauntlet full of Infinity Stones.",
-      "answer": "Thanos",
-      "used": false
+      "points": 600,
+      "clue": "Turn a loud ringing object into a place to draw water.",
+      "answer": "Bell → well",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
-      "catIndex": 4,
-      "points": 100,
-      "clue": "These monumental structures are found in Giza, built as tombs for Pharaohs.",
-      "answer": "Pyramids",
-      "used": false
+      "catIndex": 3,
+      "points": 800,
+      "clue": "Turn something worn on a finger into something a bird flies with.",
+      "answer": "Ring → wing",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 3,
+      "points": 1000,
+      "clue": "Turn a rocky mountain top into a word meaning to take a quick look.",
+      "answer": "Peak → peek",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 4,
       "points": 200,
-      "clue": "This river was crucial to the development of Ancient Egyptian civilization.",
-      "answer": "Nile",
-      "used": false
-    },
-    {
-      "catIndex": 4,
-      "points": 300,
-      "clue": "This famous queen was the last active ruler of the Ptolemaic Kingdom of Egypt.",
-      "answer": "Cleopatra",
-      "used": false
+      "clue": "This snack pops when its kernels are heated.",
+      "answer": "Popcorn",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 4,
       "points": 400,
-      "clue": "This writing system used by ancient Egyptians employed pictorial symbols.",
-      "answer": "Hieroglyphics",
-      "used": false
+      "clue": "I’m crunchy, with three holes, a twist, and a sprinkle of salt.",
+      "answer": "Pretzel",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 4,
-      "points": 500,
-      "clue": "This young pharaoh's nearly intact tomb was discovered by Howard Carter in 1922.",
-      "answer": "Tutankhamun",
-      "used": false
+      "points": 600,
+      "clue": "This dip is made by mashing avocado.",
+      "answer": "Guacamole",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
-      "catIndex": 5,
-      "points": 100,
-      "clue": "This country was led by Adolf Hitler during World War II.",
-      "answer": "Germany",
-      "used": false
+      "catIndex": 4,
+      "points": 800,
+      "clue": "These crunchy sheets wrap sushi or come roasted in snack packs.",
+      "answer": "Seaweed (accept nori)",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 4,
+      "points": 1000,
+      "clue": "These fuzzy green pods are often steamed and salted. You eat the beans inside.",
+      "answer": "Edamame",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 5,
       "points": 200,
-      "clue": "This country experienced the attack on Pearl Harbor, bringing it into the war.",
-      "answer": "United States",
-      "used": false
-    },
-    {
-      "catIndex": 5,
-      "points": 300,
-      "clue": "This British leader was known for his powerful speeches during the war.",
-      "answer": "Winston Churchill",
-      "used": false
+      "clue": "2, 4, 6, 8, ___.",
+      "answer": "10",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 5,
       "points": 400,
-      "clue": "The invasion of this country by Germany in 1939 marked the start of World War II.",
-      "answer": "Poland",
-      "used": false
+      "clue": "A, C, E, G, ___.",
+      "answer": "I",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     },
     {
       "catIndex": 5,
-      "points": 500,
-      "clue": "This secret program developed the atomic bombs used during World War II.",
-      "answer": "Manhattan Project",
-      "used": false
+      "points": 600,
+      "clue": "1, 2, 4, 8, ___.",
+      "answer": "16",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 5,
+      "points": 800,
+      "clue": "1, 1, 2, 3, 5, ___.",
+      "answer": "8",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
+    },
+    {
+      "catIndex": 5,
+      "points": 1000,
+      "clue": "1, 4, 9, 16, 25, ___.",
+      "answer": "36",
+      "used": false,
+      "lowConfidence": false,
+      "confidenceNote": ""
     }
   ],
   "teams": [
     {
       "name": "Team 1",
-      "score": 0
+      "score": -100
     },
     {
       "name": "Team 2",
-      "score": 0
+      "score": -200
     },
     {
       "name": "Team 3",
-      "score": 0
+      "score": 200
     }
   ],
   "gameTitle": "JEOPARTY!",
-  "chooserTeamIndex": null,
+  "chooserTeamIndex": 2,
   "questionTimerSeconds": 5,
-  "buzzTimerSeconds": 5
+  "buzzTimerSeconds": 5,
+  "round": 3,
+  "rounds": {
+    "1": {
+      "categories": [
+        "Wrong Answers Only",
+        "Zoom In!",
+        "What's That Sound?",
+        "Emoji Movie Night",
+        "Before You Were Born",
+        "Color Mix-Up"
+      ],
+      "categoryNotes": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "cells": [
+        {
+          "catIndex": 0,
+          "points": 100,
+          "clue": "A tiny rake for tidying up your spaghetti.",
+          "answer": "Fork",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 200,
+          "clue": "A portable roof that pops open when it rains.",
+          "answer": "Umbrella",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 300,
+          "clue": "A little snowstorm for your leftovers.",
+          "answer": "Freezer",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 400,
+          "clue": "A cage that gives sliced bread a suntan.",
+          "answer": "Toaster",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 500,
+          "clue": "A tiny elevator that lifts your car so you can change a tire.",
+          "answer": "Car jack",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 100,
+          "clue": "Show just the metal teeth of a zipper.",
+          "answer": "Zipper",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 200,
+          "clue": "Show only the eraser and metal band of a pencil.",
+          "answer": "Pencil",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 300,
+          "clue": "Show a close-up of toothbrush bristles.",
+          "answer": "Toothbrush",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 400,
+          "clue": "Show the holes and a few grains on the top of a salt shaker.",
+          "answer": "Salt shaker",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 500,
+          "clue": "Show the pull tab on a soda can with the rim cropped out.",
+          "answer": "Soda can",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 100,
+          "clue": "Play a dog barking.",
+          "answer": "Dog",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 200,
+          "clue": "Play a toilet flushing.",
+          "answer": "Toilet",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 300,
+          "clue": "Play popcorn popping.",
+          "answer": "Popcorn",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 400,
+          "clue": "Play the sound of Velcro being pulled apart.",
+          "answer": "Velcro",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 500,
+          "clue": "Play the sound of a tape measure snapping back into its case.",
+          "answer": "Retractable tape measure",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 100,
+          "clue": "❄️👭⛄🦌",
+          "answer": "Frozen",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 200,
+          "clue": "🐠🔍🌊🐢",
+          "answer": "Finding Nemo",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 300,
+          "clue": "🦁👑🌅",
+          "answer": "The Lion King",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 400,
+          "clue": "🎈🏠👴👦",
+          "answer": "Up",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 500,
+          "clue": "🐀👨‍🍳🍲🇫🇷",
+          "answer": "Ratatouille",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 100,
+          "clue": "A needle follows the grooves on this round disc to play music.",
+          "answer": "Vinyl record",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 200,
+          "clue": "On this phone, you spin a circular dial to enter each number.",
+          "answer": "Rotary phone",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 300,
+          "clue": "This little plastic tape with two spools was used to play or record songs.",
+          "answer": "Cassette tape",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 400,
+          "clue": "Movies on this chunky cassette played in a VCR.",
+          "answer": "VHS tape",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 500,
+          "clue": "Before online searches, this set of drawers held cards listing a library's books.",
+          "answer": "Card catalog",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 100,
+          "clue": "Mix yellow and blue paint to make this color.",
+          "answer": "Green",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 200,
+          "clue": "Mix red and yellow paint to make this color.",
+          "answer": "Orange",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 300,
+          "clue": "Mix red and blue paint to make this color.",
+          "answer": "Purple",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 400,
+          "clue": "Mix red and white paint to make this color.",
+          "answer": "Pink",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 500,
+          "clue": "Mix black and white paint to make this color.",
+          "answer": "Gray",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        }
+      ]
+    },
+    "2": {
+      "categories": [
+        "YouTube Creator Initials",
+        "Asian Food Ingredients",
+        "Minecraft Dimensions",
+        "One Letter Off",
+        "Name That Snack",
+        "What Comes Next?"
+      ],
+      "categoryNotes": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "cells": [
+        {
+          "catIndex": 0,
+          "points": 200,
+          "clue": "Which creator called MrBeast uses the initials MB?",
+          "answer": "MrBeast",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 400,
+          "clue": "Which creator duo with the initials VN has Vlad as the first name?",
+          "answer": "Vlad & Niki",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 600,
+          "clue": "Which title with the initials KDS includes the name Diana?",
+          "answer": "Kids Diana Show",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 800,
+          "clue": "Which two-word channel title abbreviated LN includes Nastya?",
+          "answer": "Like Nastya",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 0,
+          "points": 1000,
+          "clue": "Which channel abbreviated TC pairs a word for playthings with a word for shades and hues?",
+          "answer": "Toys and Colors",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 200,
+          "clue": "What fruit tops the Thai dessert mango sticky rice?",
+          "answer": "Mango",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 400,
+          "clue": "What legume is commonly crushed over pad Thai?",
+          "answer": "Peanut",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 600,
+          "clue": "What grain is the main ingredient in traditional mochi?",
+          "answer": "Glutinous rice (accept rice)",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 800,
+          "clue": "What type of seafood is commonly found inside takoyaki?",
+          "answer": "Octopus",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 1,
+          "points": 1000,
+          "clue": "What type of bean is the main ingredient in miso paste?",
+          "answer": "Soybean",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 200,
+          "clue": "Starting dimension.",
+          "answer": "Overworld",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 400,
+          "clue": "Fiery dimension reached through a portal framed in obsidian.",
+          "answer": "Nether",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 600,
+          "clue": "Dimension where you fight the Ender Dragon.",
+          "answer": "The End",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 800,
+          "clue": "Purple blocks that appear inside an active obsidian portal belong to this portal type.",
+          "answer": "Nether portal",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 2,
+          "points": 1000,
+          "clue": "Small portals that lead between the main End island and outer End islands.",
+          "answer": "End gateways",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 200,
+          "clue": "Turn a pet that purrs into something you wear on your head.",
+          "answer": "Cat → hat",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 400,
+          "clue": "Turn a writing tool into a farm bird.",
+          "answer": "Pen → hen",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 600,
+          "clue": "Turn a loud ringing object into a place to draw water.",
+          "answer": "Bell → well",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 800,
+          "clue": "Turn something worn on a finger into something a bird flies with.",
+          "answer": "Ring → wing",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 3,
+          "points": 1000,
+          "clue": "Turn a rocky mountain top into a word meaning to take a quick look.",
+          "answer": "Peak → peek",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 200,
+          "clue": "This snack pops when its kernels are heated.",
+          "answer": "Popcorn",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 400,
+          "clue": "I’m crunchy, with three holes, a twist, and a sprinkle of salt.",
+          "answer": "Pretzel",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 600,
+          "clue": "This dip is made by mashing avocado.",
+          "answer": "Guacamole",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 800,
+          "clue": "These crunchy sheets wrap sushi or come roasted in snack packs.",
+          "answer": "Seaweed (accept nori)",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 4,
+          "points": 1000,
+          "clue": "These fuzzy green pods are often steamed and salted. You eat the beans inside.",
+          "answer": "Edamame",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 200,
+          "clue": "2, 4, 6, 8, ___.",
+          "answer": "10",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 400,
+          "clue": "A, C, E, G, ___.",
+          "answer": "I",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 600,
+          "clue": "1, 2, 4, 8, ___.",
+          "answer": "16",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 800,
+          "clue": "1, 1, 2, 3, 5, ___.",
+          "answer": "8",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        },
+        {
+          "catIndex": 5,
+          "points": 1000,
+          "clue": "1, 4, 9, 16, 25, ___.",
+          "answer": "36",
+          "used": false,
+          "lowConfidence": false,
+          "confidenceNote": ""
+        }
+      ]
+    }
+  },
+  "finalJeopardy": {
+    "category": "",
+    "clue": "",
+    "answer": "",
+    "lowConfidence": false,
+    "confidenceNote": ""
+  },
+  "finalWagers": [
+    null,
+    null,
+    null
+  ],
+  "finalScoredTeams": [
+    false,
+    false,
+    false
+  ],
+  "categoryNotes": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ],
+  "dailyDoubles": {
+    "1": [
+      {
+        "catIndex": 0,
+        "points": 300
+      },
+      {
+        "catIndex": 1,
+        "points": 400
+      }
+    ],
+    "2": [
+      {
+        "catIndex": 0,
+        "points": 400
+      },
+      {
+        "catIndex": 5,
+        "points": 800
+      }
+    ]
+  }
 }

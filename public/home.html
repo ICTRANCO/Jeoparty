@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jeoparty Main Screen</title>
+<link rel="stylesheet" href="styles.css?v=19" />
+</head>
+<body class="home-page">
+  <main class="home-wrap">
+    <h1 class="home-title" id="home-title">JEOPARTY!</h1>
+    <p class="home-subtitle">Main screen</p>
+
+    <section aria-labelledby="home-rounds-heading">
+      <h2 class="home-section-title" id="home-rounds-heading">Choose a round</h2>
+      <p class="home-round-note">Each board has two hidden Daily Doubles. A new game reshuffles their locations.</p>
+      <div class="home-grid">
+        <button type="button" class="home-tile" data-round="1">
+          <span class="home-tile-kicker">Round 1</span>
+          <span class="home-tile-name">Jeopardy!</span>
+        </button>
+        <button type="button" class="home-tile" data-round="2">
+          <span class="home-tile-kicker">Round 2</span>
+          <span class="home-tile-name">Double Jeopardy!</span>
+        </button>
+        <button type="button" class="home-tile" data-round="3">
+          <span class="home-tile-kicker">Final</span>
+          <span class="home-tile-name">Final Jeopardy!</span>
+        </button>
+      </div>
+    </section>
+
+    <section aria-labelledby="home-tools-heading">
+      <h2 class="home-section-title" id="home-tools-heading">Game tools</h2>
+      <div class="home-grid home-grid-tools">
+        <a class="home-tile home-tile-tool" href="/">Game Board</a>
+        <a class="home-tile home-tile-tool" href="host.html">Host View</a>
+        <a class="home-tile home-tile-tool" href="admin.html">Admin</a>
+      </div>
+    </section>
+    <p class="home-status" id="home-status" role="status" aria-live="polite"></p>
+  </main>
+  <script src="theme-music.js?v=1"></script>
+  <script src="home.js?v=3"></script>
+</body>
+</html>

@@ -4,15 +4,66 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Jeoparty Admin</title>
-<link rel="stylesheet" href="styles.css?v=17" />
+<link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
 <div class="topbar">
   <h1>⚙️ Admin</h1>
-  <a href="index.html">← Back to Board</a>
+  <div class="topbar-actions"><a href="home.html">← Main Screen</a><a href="/">Game Board</a><a href="host.html">Host View</a></div>
 </div>
 
 <div class="admin-wrap">
+
+  <div class="panel">
+    <h2>Game Round</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="round-select">Round to manage</label>
+        <select id="round-select">
+          <option value="1">Round 1 — Jeopardy!</option>
+          <option value="2">Round 2 — Double Jeopardy!</option>
+          <option value="3">Final Jeopardy!</option>
+        </select>
+      </div>
+      <button class="btn" id="save-round-btn" type="button">Open Selected Round</button>
+    </div>
+    <div class="status-msg" id="round-status" aria-live="polite"></div>
+  </div>
+
+  <div class="panel" id="final-admin-panel" hidden>
+    <h2>Final Jeopardy</h2>
+    <p>Select a Final Jeopardy question from the linked sheet, or enter one manually below. Sheet questions are ordered by previous play count, least played first.</p>
+    <div class="field-row">
+      <button class="btn secondary" id="load-final-sheet-btn" type="button">Load Final Questions from Sheet</button>
+      <div class="field" id="final-sheet-select-wrap" hidden>
+        <label for="final-sheet-question">Choose a sheet question</label>
+        <select id="final-sheet-question">
+          <option value="">Choose a question…</option>
+        </select>
+      </div>
+      <button class="btn secondary" id="use-final-sheet-btn" type="button" disabled>Use Selected Question</button>
+    </div>
+    <div class="sheet-final-preview" id="final-sheet-preview" hidden></div>
+    <div class="status-msg" id="final-sheet-status" role="status" aria-live="polite"></div>
+    <div class="qa-low-confidence-notice" id="final-confidence-notice" role="status" aria-live="polite" hidden></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="final-category">Category</label>
+        <input id="final-category" type="text" maxlength="60" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="final-clue">Clue</label>
+      <textarea id="final-clue" rows="4" maxlength="4000"></textarea>
+    </div>
+    <div class="field">
+      <label for="final-answer">Correct response</label>
+      <textarea id="final-answer" rows="3" maxlength="2000"></textarea>
+    </div>
+    <button class="btn" id="save-final-btn" type="button">Save Final Jeopardy</button>
+    <div class="status-msg" id="final-status" aria-live="polite"></div>
+    <p>Teams wager up to their current score. The host records each team's response and result in Host View.</p>
+  </div>
 
   <div class="panel">
     <h2>Game Title</h2>
@@ -28,7 +79,7 @@
     <div class="status-msg" id="title-status"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="category-panel">
     <h2>Categories</h2>
     <div class="field-row" id="category-inputs"></div>
     <div class="category-actions">
@@ -39,7 +90,22 @@
     <div class="status-msg" id="category-status"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="sheet-import-panel">
+    <h2>Import Categories, Clues &amp; Answers</h2>
+    <p>Select six categories from the linked sheet for the active board round. The list shows previous play counts and puts less-played categories first. Importing replaces that round’s categories and clues, and resets its squares to unplayed; team scores and Daily Doubles are unchanged.</p>
+    <div class="field-row">
+      <button class="btn secondary" id="load-sheet-categories-btn" type="button">Load Categories from Sheet</button>
+      <span id="sheet-import-round-label"></span>
+    </div>
+    <div id="sheet-import-controls" hidden>
+      <div class="sheet-category-grid" id="sheet-category-selects"></div>
+      <div class="sheet-import-preview" id="sheet-import-preview"></div>
+      <button class="btn" id="import-sheet-btn" type="button" disabled>Import Selected Categories</button>
+    </div>
+    <div class="status-msg" id="sheet-import-status" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="panel" id="timer-panel">
     <h2>Question Timers</h2>
     <div class="field-row">
       <div class="field">
@@ -73,7 +139,7 @@
     <div class="status-msg" id="timer-status"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="generate-panel">
     <h2>Generate Questions with AI</h2>
     <div class="field-row">
       <div class="field" style="flex: 1 1 300px;">
@@ -95,11 +161,11 @@
     <p style="font-size: 0.8rem; color: #b8b9e8;">
       Your key is stored only in a local file on this machine (<code>data/config.json</code>) and used server-side to call OpenAI — it is never sent back to the browser.
     </p>
-    <button class="btn" id="generate-btn">Generate All 30 Questions</button>
+    <button class="btn" id="generate-btn">Generate This Round's 30 Questions</button>
     <div class="status-msg" id="generate-status"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="questions-panel">
     <h2>Questions &amp; Answers</h2>
     <p style="font-size: 0.85rem; color: #b8b9e8;">Edit any clue or answer, then click Save Question for that cell.</p>
     <div style="overflow-x: auto;">
@@ -109,6 +175,6 @@
 
 </div>
 
-<script src="admin.js?v=3"></script>
+<script src="admin.js?v=7"></script>
 </body>
 </html>

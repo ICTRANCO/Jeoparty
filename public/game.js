@@ -20,18 +20,31 @@ const teamBuzzChipsEl = document.getElementById('team-buzz-chips');
 const questionBackBtn = document.getElementById('question-back-btn');
 const questionTimerBar = document.getElementById('question-timer-bar');
 const questionTimerFill = document.getElementById('question-timer-fill');
+const roundNameKickerEl = document.getElementById('round-name-kicker');
+const roundNameTitleEl = document.getElementById('round-name-title');
+const finalJeopardyEl = document.getElementById('final-jeopardy');
+const finalCategoryEl = document.getElementById('final-jeopardy-category');
+const finalClueEl = document.getElementById('final-jeopardy-clue');
+const finalAnswerEl = document.getElementById('final-jeopardy-answer');
+const finalRevealBtn = document.getElementById('final-jeopardy-reveal');
+const sheetPlayStatusEl = document.getElementById('sheet-play-status');
 
 let hostStartBtn = null;
 
 let board = null;
 let activeCell = null;
+let dailyDouble = null;
+let dailyDoubleSplashShown = false;
+let dailyDoubleSoundPlayed = false;
 let disabledTeamsForQuestion = new Set();
 let buzzerWinner = null;
 let buzzersEnabled = false;
 let remoteSocket = null;
 let remoteReconnectTimer = null;
 let audioContext = null;
+let dailyDoubleSound = null;
 let questionLocked = false;
+let finalAnswerRevealed = false;
 let timerTimeout = null;
 let timerGeneration = 0;
 const heldBuzzerKeys = new Set();
@@ -96,12 +109,20 @@ function stopQuestionTimer(hide = true) {
 
 function revealCurrentAnswer() {
   if (!activeCell) return;
+  if (dailyDouble && dailyDouble.wager === null) return;
   answerText.textContent = activeCell.answer && activeCell.answer.trim()
     ? activeCell.answer
     : '(No answer set)';
   answerText.style.visibility = 'visible';
   revealAnswerBtn.disabled = true;
   revealAnswerBtn.textContent = 'Answer Shown';
+}
+
+function revealFinalJeopardyAnswer() {
+  if (!board || Number(board.round) !== 3) return;
+  finalAnswerRevealed = true;
+  finalAnswerEl.classList.remove('hidden');
+  finalRevealBtn.classList.add('hidden');
 }
 
 function lockQuestionForTimeout() {
@@ -193,6 +214,21 @@ function connectRemoteControls() {
       loadBoard();
       return;
     }
+    if (activeCell && message.question?.dailyDouble
+      && message.question.catIndex === activeCell.catIndex
+      && message.question.points === activeCell.points) {
+      if (!dailyDouble) {
+        dailyDouble = message.question.dailyDouble;
+        showDailyDoubleSplash();
+      } else {
+        applyDailyDoubleWager(message.question.dailyDouble);
+      }
+      return;
+    }
+    if (!activeCell && board?.round === 3 && message.type === 'reveal-answer') {
+      revealFinalJeopardyAnswer();
+      return;
+    }
     if (!activeCell) return;
 
     if (message.type === 'buzzers-ready') {
@@ -224,9 +260,27 @@ function connectRemoteControls() {
 
 async function loadBoard() {
   const res = await fetch('/api/board');
+  if (!res.ok) throw new Error('Could not load the game board');
+  const previousRound = board?.round;
   board = await res.json();
+  if (previousRound && previousRound !== board.round) {
+    stopQuestionTimer();
+    activeCell = null;
+    dailyDouble = null;
+    dailyDoubleSoundPlayed = false;
+    dailyDoubleSound?.pause();
+    questionLocked = false;
+    disabledTeamsForQuestion.clear();
+    buzzersEnabled = false;
+    overlay.classList.add('hidden');
+    flipCard.classList.remove('flipped');
+  }
   gameTitleEl.textContent = board.gameTitle;
   document.title = `${board.gameTitle} Board`;
+  const round = Number(board.round) || 1;
+  roundNameKickerEl.textContent = round === 3 ? 'Final' : `Round ${round}`;
+  roundNameTitleEl.textContent = round === 3 ? 'Final Jeopardy!' : round === 2 ? 'Double Jeopardy!' : 'Jeopardy!';
+  if (previousRound !== round && round === 3) finalAnswerRevealed = false;
   render();
   renderScoreboard();
   if (activeCell) {
@@ -240,6 +294,17 @@ function cellFor(catIndex, points) {
 
 function render() {
   boardEl.innerHTML = '';
+  const isFinal = Number(board.round) === 3;
+  boardEl.classList.toggle('hidden', isFinal);
+  finalJeopardyEl.classList.toggle('hidden', !isFinal);
+  if (isFinal) {
+    finalCategoryEl.textContent = board.finalJeopardy?.category || 'Final Jeopardy';
+    finalClueEl.textContent = board.finalJeopardy?.clue || '(Set the Final Jeopardy clue in Admin.)';
+    finalAnswerEl.textContent = board.finalJeopardy?.answer || '(No answer has been set.)';
+    finalAnswerEl.classList.toggle('hidden', !finalAnswerRevealed);
+    finalRevealBtn.classList.toggle('hidden', finalAnswerRevealed);
+    return;
+  }
 
   board.categories.forEach((name) => {
     const el = document.createElement('div');
@@ -248,7 +313,8 @@ function render() {
     boardEl.appendChild(el);
   });
 
-  POINTS.forEach((points) => {
+  const pointsValues = Number(board.round) === 2 ? [200, 400, 600, 800, 1000] : POINTS;
+  pointsValues.forEach((points) => {
     board.categories.forEach((_, catIndex) => {
       const cell = cellFor(catIndex, points);
       const el = document.createElement('div');
@@ -351,7 +417,7 @@ function setBuzzWinner(teamIndex) {
 }
 
 function handleBuzz(teamIndex) {
-  if (!activeCell || questionLocked) return;
+  if (!activeCell || questionLocked || dailyDouble) return;
   if (!buzzersEnabled) {
     updateBuzzerStatus('Waiting for a buzz');
     return;
@@ -404,6 +470,30 @@ async function saveTeamName(i, nameInput) {
 
 function renderScoringControls() {
   scoringControls.innerHTML = '';
+  if (dailyDouble) {
+    if (dailyDouble.wager === null) {
+      renderDailyDoubleWagerForm();
+      return;
+    }
+    const prompt = document.createElement('div');
+    prompt.className = 'scoring-prompt';
+    prompt.textContent = `${dailyDouble.teamName} wagered $${dailyDouble.wager}`;
+    const buttonRow = document.createElement('div');
+    buttonRow.className = 'scoring-button-row';
+    const correctBtn = document.createElement('button');
+    correctBtn.className = 'score-btn correct';
+    correctBtn.textContent = '✓ Correct';
+    correctBtn.disabled = questionLocked || dailyDouble.scored;
+    correctBtn.addEventListener('click', () => applyScore(dailyDouble.teamIndex, true));
+    const incorrectBtn = document.createElement('button');
+    incorrectBtn.className = 'score-btn incorrect';
+    incorrectBtn.textContent = '✗ Incorrect';
+    incorrectBtn.disabled = questionLocked || dailyDouble.scored;
+    incorrectBtn.addEventListener('click', () => applyScore(dailyDouble.teamIndex, false));
+    buttonRow.append(correctBtn, incorrectBtn);
+    scoringControls.append(prompt, buttonRow);
+    return;
+  }
 
   const prompt = document.createElement('div');
   prompt.className = 'scoring-prompt';
@@ -456,25 +546,120 @@ function renderScoringControls() {
   scoringControls.appendChild(buttonRow);
 }
 
-async function applyScore(teamIndex, correct) {
-  if (!activeCell || questionLocked || teamIndex === null || teamIndex === undefined) return;
+function renderDailyDoubleWagerForm() {
+  const prompt = document.createElement('div');
+  prompt.className = 'scoring-prompt';
+  prompt.textContent = 'Daily Double — choose the team and set its wager';
 
-  const res = await fetch('/api/board/score', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ teamIndex, correct }),
+  const form = document.createElement('form');
+  form.className = 'daily-double-wager-form';
+  const teamSelect = document.createElement('select');
+  teamSelect.setAttribute('aria-label', 'Daily Double wagering team');
+  const placeholder = new Option('Choose team…', '');
+  placeholder.disabled = true;
+  teamSelect.append(placeholder);
+  board.teams.forEach((team, index) => teamSelect.append(new Option(`${team.name} (${team.score})`, String(index))));
+  teamSelect.value = dailyDouble.teamIndex === null ? '' : String(dailyDouble.teamIndex);
+
+  const amount = document.createElement('input');
+  amount.type = 'number';
+  amount.min = '0';
+  amount.step = '1';
+  amount.required = true;
+  amount.inputMode = 'numeric';
+  amount.setAttribute('aria-label', 'Daily Double wager');
+
+  const updateLimit = () => {
+    const team = board.teams[Number(teamSelect.value)];
+    const maximum = team ? Math.max(team.score, dailyDouble.topValue) : dailyDouble.topValue;
+    amount.max = String(maximum);
+    amount.placeholder = `0–${maximum}`;
+  };
+  teamSelect.addEventListener('change', updateLimit);
+  updateLimit();
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'score-btn daily-double-submit';
+  submit.textContent = 'Set Wager';
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (teamSelect.value === '') {
+      updateBuzzerStatus('Choose the team that is wagering');
+      teamSelect.focus();
+      return;
+    }
+    submit.disabled = true;
+    try {
+      const res = await fetch('/api/board/wager', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ teamIndex: Number(teamSelect.value), wager: amount.value }),
+      });
+      const state = await res.json();
+      if (!res.ok) throw new Error(state.error || 'Could not set the wager.');
+      applyDailyDoubleWager(state.question?.dailyDouble);
+    } catch (error) {
+      updateBuzzerStatus(error.message);
+      submit.disabled = false;
+      amount.focus();
+    }
   });
 
+  form.append(teamSelect, amount, submit);
+  scoringControls.append(prompt, form);
+}
+
+async function applyScore(teamIndex, correct) {
+  if (!activeCell || questionLocked || teamIndex === null || teamIndex === undefined) return;
+  if (dailyDouble && (dailyDouble.wager === null || dailyDouble.scored || dailyDouble.teamIndex !== teamIndex)) return;
+  const dailyDoubleValue = dailyDouble?.wager;
+  if (dailyDouble) {
+    questionLocked = true;
+    renderScoringControls();
+  }
+
+  let res;
+  try {
+    res = await fetch('/api/board/score', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ teamIndex, correct }),
+    });
+  } catch (error) {
+    console.error('Score update failed', error);
+    updateBuzzerStatus('Could not save the score; try again.');
+    if (dailyDouble) {
+      questionLocked = false;
+      renderScoringControls();
+    }
+    return;
+  }
+
   if (!res.ok) {
-    console.error('Score update failed', await res.text());
+    const error = await res.text();
+    console.error('Score update failed', error);
+    updateBuzzerStatus(error || 'Could not save the score; try again.');
+    if (dailyDouble) {
+      questionLocked = false;
+      renderScoringControls();
+    }
     return;
   }
 
   board = await res.json();
+  if (dailyDouble) dailyDouble.scored = true;
   stopQuestionTimer();
   playAnswerSound(correct);
   renderScoreboard();
   render();
+
+  if (dailyDouble) {
+    showTeamScoreFlash(teamIndex, correct ? dailyDoubleValue : -dailyDoubleValue);
+    setTimeout(closeOverlay, 1400);
+    return;
+  }
 
   if (!correct) {
     const teamName = board.teams[teamIndex]?.name || 'The first team';
@@ -510,18 +695,70 @@ async function publishHostQuestion(catIndex, points) {
       body: JSON.stringify({ catIndex, points }),
     });
     if (!res.ok) throw new Error(await res.text());
+    const state = await res.json();
+    return state.question?.dailyDouble || null;
   } catch (err) {
     console.error('Could not update the host answer view', err);
+    return null;
   }
 }
 
-function openCell(catIndex, points) {
+function playDailyDoubleSound() {
+  if (typeof Audio === 'undefined') return;
+  dailyDoubleSound ||= new Audio(`/audio/${encodeURIComponent('Jeopardy Daily Double - QuickSounds.com.mp3')}`);
+  dailyDoubleSound.currentTime = 0;
+  dailyDoubleSound.play().catch((error) => console.warn('Daily Double sound could not be played.', error));
+  dailyDoubleSoundPlayed = true;
+}
+
+function showDailyDoubleSplash() {
+  if (dailyDoubleSplashShown) return;
+  dailyDoubleSplashShown = true;
+  revealAnswerBtn.disabled = true;
+  if (!dailyDoubleSoundPlayed) playDailyDoubleSound();
+  flipFront.textContent = 'DAILY DOUBLE!';
+  clueText.replaceChildren();
+  const title = document.createElement('span');
+  title.className = 'daily-double-title';
+  title.textContent = 'DAILY DOUBLE!';
+  const note = document.createElement('span');
+  note.className = 'daily-double-note';
+  note.textContent = 'The host sets the wager before the question appears.';
+  clueText.append(title, note);
+  updateBuzzerStatus('Daily Double: waiting for the wager');
+}
+
+function applyDailyDoubleWager(state) {
+  if (!activeCell || !state || !Number.isInteger(state.teamIndex)) return;
+  const firstWager = !dailyDouble || dailyDouble.wager === null;
+  dailyDouble = { ...dailyDouble, ...state };
+  buzzerWinner = state.teamIndex;
+  disabledTeamsForQuestion = new Set(
+    board.teams.map((_, index) => index).filter((index) => index !== state.teamIndex),
+  );
+  if (firstWager) {
+    clueText.textContent = activeCell.clue?.trim()
+      ? activeCell.clue
+      : '(No question has been added for this square yet. Add one on the Admin page.)';
+    revealAnswerBtn.disabled = false;
+  }
+  updateBuzzerStatus(`${state.teamName} wagered $${state.wager}`);
+  renderTeamBuzzChips();
+  renderScoringControls();
+}
+
+async function openCell(catIndex, points) {
   const cell = cellFor(catIndex, points);
   if (!cell) return;
   activeCell = cell;
   questionLocked = false;
+  dailyDouble = null;
+  dailyDoubleSplashShown = false;
+  dailyDoubleSoundPlayed = false;
+  if (!cell.used && board.dailyDoubles?.[board.round]?.some((square) => square.catIndex === catIndex && square.points === points)) {
+    playDailyDoubleSound();
+  }
   stopQuestionTimer();
-  publishHostQuestion(catIndex, points);
   disabledTeamsForQuestion.clear();
   buzzersEnabled = false;
   resetBuzzers();
@@ -531,6 +768,11 @@ function openCell(catIndex, points) {
   clueText.textContent = cell.clue && cell.clue.trim()
     ? cell.clue
     : '(No question has been added for this square yet. Add one on the Admin page.)';
+  const wagerState = await publishHostQuestion(catIndex, points);
+  if (wagerState) {
+    dailyDouble = wagerState;
+    showDailyDoubleSplash();
+  }
 
   if (cell.used) {
     answerText.textContent = cell.answer && cell.answer.trim() ? cell.answer : '(No answer set)';
@@ -540,7 +782,7 @@ function openCell(catIndex, points) {
   } else {
     answerText.textContent = '';
     answerText.style.visibility = 'hidden';
-    revealAnswerBtn.disabled = false;
+    revealAnswerBtn.disabled = Boolean(dailyDouble && dailyDouble.wager === null);
     revealAnswerBtn.textContent = 'Reveal Answer';
   }
   reviewBadge.classList.toggle('hidden', !cell.used);
@@ -564,20 +806,39 @@ revealAnswerBtn.addEventListener('click', () => {
   revealCurrentAnswer();
 });
 
+finalRevealBtn.addEventListener('click', revealFinalJeopardyAnswer);
+
 async function closeOverlay() {
   stopQuestionTimer();
   if (activeCell && !activeCell.used) {
-    await fetch('/api/board/reveal', {
+    const revealRes = await fetch('/api/board/reveal', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ catIndex: activeCell.catIndex, points: activeCell.points }),
     });
+    if (!revealRes.ok) {
+      updateBuzzerStatus('Could not close the question; try again.');
+      console.error('Could not mark question as used', await revealRes.text());
+      return;
+    }
+    const revealData = await revealRes.json();
+    const trackingMessage = revealData.sheetTrackingWarning
+      || (revealData.pendingSheetPlayCount ? 'Sheet play-count update queued for sync.' : '');
+    sheetPlayStatusEl.textContent = trackingMessage;
+    sheetPlayStatusEl.hidden = !trackingMessage;
+    sheetPlayStatusEl.classList.toggle('error', Boolean(revealData.sheetTrackingWarning));
     activeCell.used = true;
   }
+  const clearQuestionRes = await fetch('/api/host/question', { method: 'DELETE' });
+  if (!clearQuestionRes.ok) console.error('Could not clear the host question', await clearQuestionRes.text());
   reviewBadge.classList.add('hidden');
   overlay.classList.add('hidden');
   flipCard.classList.remove('flipped');
   activeCell = null;
+  dailyDouble = null;
+  dailyDoubleSplashShown = false;
+  dailyDoubleSoundPlayed = false;
+  dailyDoubleSound?.pause();
   questionLocked = false;
   disabledTeamsForQuestion.clear();
   buzzersEnabled = false;
@@ -594,12 +855,17 @@ questionBackBtn.addEventListener('click', async () => {
   flipCard.classList.remove('flipped');
   reviewBadge.classList.add('hidden');
   activeCell = null;
+  dailyDouble = null;
+  dailyDoubleSplashShown = false;
+  dailyDoubleSoundPlayed = false;
+  dailyDoubleSound?.pause();
   questionLocked = false;
   disabledTeamsForQuestion.clear();
   buzzersEnabled = false;
   updateHostButtonState();
   resetBuzzers();
-  await fetch('/api/host/question', { method: 'DELETE' }).catch(() => {});
+  const res = await fetch('/api/host/question', { method: 'DELETE' });
+  if (!res.ok) console.error('Could not clear the host question', await res.text());
   await loadBoard();
 });
 
@@ -635,10 +901,30 @@ window.addEventListener('keyup', (event) => {
 
 window.addEventListener('blur', () => heldBuzzerKeys.clear());
 
+if (window.ThemeMusic) {
+  window.ThemeMusic.play();
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) window.ThemeMusic.play();
+  });
+  document.querySelector('.topbar-actions').append(window.ThemeMusic.createToggle());
+}
+
 resetBtn.addEventListener('click', async () => {
-  if (!confirm('Start a new game? This clears which squares have been played and resets scores to 0 (questions and team names stay the same).')) return;
+  if (!confirm('Start a new game? This clears played squares in both rounds and resets all scores and Final Jeopardy wagers (questions and team names stay the same).')) return;
   const res = await fetch('/api/board/reset', { method: 'POST' });
   board = await res.json();
+  activeCell = null;
+  dailyDouble = null;
+  dailyDoubleSplashShown = false;
+  dailyDoubleSoundPlayed = false;
+  dailyDoubleSound?.pause();
+  dailyDoubleSound?.pause();
+  questionLocked = false;
+  buzzersEnabled = false;
+  stopQuestionTimer();
+  overlay.classList.add('hidden');
+  flipCard.classList.remove('flipped');
+  overlayControls.classList.remove('visible');
   render();
   renderScoreboard();
   renderTeamBuzzChips();

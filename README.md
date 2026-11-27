@@ -4,7 +4,32 @@
 
 Jeopardy! is a quiz game in which players choose a category and point value, then receive a clue. The player who knows the response tries to buzz in first. In the traditional format, players phrase their responses as questions—for example, “What is Saturn?”—and a host decides whether the response is correct.
 
-This project is a customizable, Jeopardy-style game. Its board has six categories, each with five clues worth 100, 200, 300, 400, and 500 points. A host can reveal answers, manage buzzers, and award or deduct the clue’s point value. The categories, audience, clues, and answers can be tailored to a group or event.
+This project is a customizable, Jeopardy-style game with a Jeopardy round, a Double Jeopardy round (values of 200–1,000), and a Final Jeopardy clue. Use the Main Screen to switch between rounds. Each board round has six categories with five clues and two randomly placed Daily Doubles; a new game reshuffles their locations. The Admin view manages each round independently and edits the final category, clue, and answer. Host View shows the active clue and answer, manages Daily Double wagers, and records Final Jeopardy wagers and results. Theme and Daily Double sounds play during the game; the theme can be muted from the Main Screen or game board. The categories, audience, clues, and answers can be tailored to a group or event.
+
+## Import categories from the family sheet
+
+In Admin, open Round 1 or Round 2, load categories from the linked sheet, and choose six distinct categories to preview their clues, answers, and confidence flags. Confirming the import replaces that round’s categories and clues and resets its squares to unplayed; team scores and Daily Doubles remain unchanged. Sheet values for Round 2 are mapped by clue order to the board’s $200–$1,000 values. Answers marked Medium or otherwise not High confidence, plus entries with sheet notes, remain highlighted for host review until edited in Admin.
+
+For Final Jeopardy, open the Final Jeopardy round in Admin and load a question from the sheet’s unassigned rows. Choose a question to preview and fill the final category, clue, and answer fields, then save. Any non-High confidence answer or sheet note is retained as a review warning; editing the fields clears that warning.
+
+## Track category play counts
+
+The app can record one play per sheet category per game. Final Jeopardy is recorded after all teams have been scored. Admin lists categories and Final Jeopardy questions in ascending play-count order and shows their existing counts; played choices remain available.
+
+1. Create a Google Apps Script project and paste in [`apps-script/Code.gs`](./apps-script/Code.gs).
+2. In the Apps Script project settings, add the script property `JEOPARDY_SHEET_WRITE_TOKEN`. Use a long random token (at least 32 characters) and keep it private.
+3. Deploy the script as a web app that executes as your Google account. Allow the app to reach the web app, then copy its `/exec` URL. The shared token authorizes writes; do not put it in source control or chat.
+4. Configure both `JEOPARDY_SHEET_WRITE_URL` (the `/exec` URL) and `JEOPARDY_SHEET_WRITE_TOKEN` for the app server.
+
+For a local PowerShell session, set the two environment variables before starting the server:
+
+```powershell
+$env:JEOPARDY_SHEET_WRITE_URL = 'https://script.google.com/macros/s/DEPLOYMENT_ID/exec'
+$env:JEOPARDY_SHEET_WRITE_TOKEN = 'the-same-private-token-set-in-Apps-Script'
+npm start
+```
+
+For Cloudflare, add both as Worker secrets with `npx wrangler secret put JEOPARDY_SHEET_WRITE_URL` and `npx wrangler secret put JEOPARDY_SHEET_WRITE_TOKEN`, then deploy. Never commit the values. If tracking is unconfigured or temporarily unavailable, updates remain queued and retry on later sheet loads, clue closes, and scoring requests. The Apps Script play log deduplicates retries and preserves any pre-existing `Times Played` values.
 
 ## Build a good board
 

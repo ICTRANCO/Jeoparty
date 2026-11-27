@@ -2,16 +2,200 @@ import { DurableObject } from 'cloudflare:workers';
 import initialBoard from '../data/board.json';
 import clueWritingGuide from '../README.md';
 
+declare global {
+  interface Env {
+    JEOPARDY_SHEET_WRITE_URL?: string;
+    JEOPARDY_SHEET_WRITE_TOKEN?: string;
+  }
+}
+
 const DEFAULT_GAME_TITLE = 'JEOPARTY!';
 const MODEL = 'gpt-4o';
 const POINTS = [100, 200, 300, 400, 500];
+const ROUND_TWO_POINTS = [200, 400, 600, 800, 1000];
+const DAILY_DOUBLE_COUNT = 2;
+const FAMILY_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1St9IpVjLblgFGBDO8V7Ma4L3S909tW9nCGFiWPyP2ZE/gviz/tq?tqx=out:csv&gid=28490002';
+const SHEET_SOURCE_POINTS = [100, 200, 300, 400, 500];
+const SHEET_SYNC_BATCH_SIZE = 5;
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
 }
 
+function parseCsvRows(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < csv.length; index += 1) {
+    const character = csv[index];
+    if (quoted) {
+      if (character === '"' && csv[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        field += character;
+      }
+    } else if (character === '"' && field.length === 0) {
+      quoted = true;
+    } else if (character === ',') {
+      row.push(field);
+      field = '';
+    } else if (character === '\r' || character === '\n') {
+      if (character === '\r' && csv[index + 1] === '\n') index += 1;
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+  if (quoted) throw new Error('The Google Sheet CSV contains an unterminated quoted field');
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseFamilySheet(csv: string, requestedRound: number): SheetCategory[] {
+  const rows = parseCsvRows(csv.replace(/^\uFEFF/, ''));
+  if (rows.length < 2) throw new Error('The Google Sheet did not contain any category rows');
+  const headers = rows[0].map((header) => header.trim().toLowerCase().replace(/\s+/g, ' '));
+  const indexOf = (header: string) => headers.indexOf(header.toLowerCase());
+  const roundIndex = indexOf('round');
+  const categoryIndex = indexOf('family jeopardy category');
+  const notesIndex = indexOf('flagged / notes');
+  const playCountIndex = indexOf('times played');
+  if (roundIndex < 0 || categoryIndex < 0) throw new Error('The Google Sheet is missing its Round or Category column');
+
+  const pointColumns = SHEET_SOURCE_POINTS.map((points) => {
+    const clueIndex = indexOf(`${points} clue`);
+    const answerIndex = indexOf(`${points} answer`);
+    const confidenceIndex = indexOf(`${points} confidence`);
+    if (clueIndex < 0 || answerIndex < 0 || confidenceIndex < 0) {
+      throw new Error(`The Google Sheet is missing clue, answer, or confidence columns for ${points} points`);
+    }
+    return { points, clueIndex, answerIndex, confidenceIndex };
+  });
+
+  const categories: SheetCategory[] = [];
+  const seen = new Set<string>();
+  rows.slice(1).forEach((values) => {
+    const roundMatch = String(values[roundIndex] || '').match(/\d+/);
+    if (!roundMatch || Number(roundMatch[0]) !== requestedRound) return;
+    const name = String(values[categoryIndex] || '').trim();
+    if (!name) return;
+    if (seen.has(name)) throw new Error(`The Google Sheet contains a duplicate category in Round ${requestedRound}: ${name}`);
+    seen.add(name);
+    const confidenceNote = String(values[notesIndex] || '').trim();
+    const cells = pointColumns.map(({ points, clueIndex, answerIndex, confidenceIndex }) => {
+      const confidence = String(values[confidenceIndex] || '').trim();
+      const clue = String(values[clueIndex] || '').trim();
+      const answer = String(values[answerIndex] || '').trim();
+      if (!clue || !answer) throw new Error(`The ${name} category has an empty clue or answer at ${points} points`);
+      return {
+        sourcePoints: points,
+        clue,
+        answer,
+        confidence,
+        confidenceNote,
+        lowConfidence: confidence.toLowerCase() !== 'high' || Boolean(confidenceNote),
+      };
+    });
+    categories.push({ name, playCount: readSheetPlayCount(values[playCountIndex]), cells });
+  });
+  if (!categories.length) throw new Error(`No categories were found for Round ${requestedRound}`);
+  return categories.sort((left, right) => left.playCount - right.playCount || left.name.localeCompare(right.name));
+}
+
+function parseFamilyFinalQuestions(csv: string): FinalSheetQuestion[] {
+  const rows = parseCsvRows(csv.replace(/^\uFEFF/, ''));
+  if (rows.length < 2) throw new Error('The Google Sheet did not contain any Final Jeopardy questions');
+  const headers = rows[0].map((header) => header.trim().toLowerCase().replace(/\s+/g, ' '));
+  const indexOf = (header: string) => headers.indexOf(header.toLowerCase());
+  const roundIndex = indexOf('round');
+  const categoryIndex = indexOf('family jeopardy category');
+  const clueIndex = indexOf('500 clue');
+  const answerIndex = indexOf('500 answer');
+  const confidenceIndex = indexOf('500 confidence');
+  const notesIndex = indexOf('flagged / notes');
+  const playCountIndex = indexOf('times played');
+  if ([roundIndex, categoryIndex, clueIndex, answerIndex, confidenceIndex].some((index) => index < 0)) {
+    throw new Error('The Google Sheet is missing the columns required for Final Jeopardy questions');
+  }
+
+  const questions: FinalSheetQuestion[] = [];
+  rows.slice(1).forEach((values) => {
+    if (String(values[roundIndex] || '').trim()) return;
+    const category = String(values[categoryIndex] || '').trim();
+    const clue = String(values[clueIndex] || '').trim();
+    const answer = String(values[answerIndex] || '').trim();
+    if (!category && !clue && !answer) return;
+    if (!category || !clue || !answer) throw new Error('A Final Jeopardy row is missing its category, clue, or answer');
+    const confidence = String(values[confidenceIndex] || '').trim();
+    const confidenceNote = String(values[notesIndex] || '').trim();
+    questions.push({
+      category,
+      clue,
+      answer,
+      confidence,
+      confidenceNote,
+      playCount: readSheetPlayCount(values[playCountIndex]),
+      lowConfidence: confidence.toLowerCase() !== 'high' || Boolean(confidenceNote),
+    });
+  });
+  if (!questions.length) throw new Error('No Final Jeopardy questions were found in the Google Sheet');
+  return questions.sort((left, right) => left.playCount - right.playCount || left.category.localeCompare(right.category));
+}
+
+function readSheetPlayCount(value: string | undefined): number {
+  const count = Number(String(value || '').trim());
+  return Number.isSafeInteger(count) && count > 0 ? count : 0;
+}
+
+function isSheetCategory(value: unknown): value is SheetCategory {
+  if (!value || typeof value !== 'object') return false;
+  const category = value as Partial<SheetCategory>;
+  return typeof category.name === 'string'
+    && typeof category.playCount === 'number'
+    && Array.isArray(category.cells)
+    && category.cells.every((cell) => Boolean(cell)
+      && typeof cell.sourcePoints === 'number'
+      && typeof cell.clue === 'string'
+      && typeof cell.answer === 'string'
+      && typeof cell.confidence === 'string'
+      && typeof cell.confidenceNote === 'string'
+      && typeof cell.lowConfidence === 'boolean');
+}
+
 function cellFor(board: Board, catIndex: number, points: number): Cell | undefined {
   return board.cells.find((cell) => cell.catIndex === catIndex && cell.points === points);
+}
+
+function sheetPlayCategoryKey(round: number, category: string, clue = ''): string {
+  return JSON.stringify([round, category.trim(), round === 3 ? clue.trim() : '']);
+}
+
+function queueSheetPlayEvent(board: Board, round: number, category: string, clue = ''): void {
+  const normalizedCategory = category.trim();
+  const normalizedClue = clue.trim();
+  if (!normalizedCategory || (round === 3 && !normalizedClue)) return;
+  const key = sheetPlayCategoryKey(round, normalizedCategory, normalizedClue);
+  const playedCategories = board.sheetPlayedCategories || (board.sheetPlayedCategories = []);
+  const pendingEvents = board.pendingSheetPlayEvents || (board.pendingSheetPlayEvents = []);
+  if (playedCategories.includes(key)) return;
+  playedCategories.push(key);
+  const gameId = board.sheetPlayGameId || (board.sheetPlayGameId = crypto.randomUUID());
+  pendingEvents.push({
+    eventId: `${gameId}:${encodeURIComponent(key)}`,
+    round,
+    category: normalizedCategory,
+    clue: normalizedClue,
+  });
 }
 
 function normalizedBoard(value: Board): Board {
@@ -29,8 +213,105 @@ function normalizedBoard(value: Board): Board {
     if (typeof cell.lowConfidence !== 'boolean') cell.lowConfidence = false;
   });
   if (!Number.isInteger(board.chooserTeamIndex) || !board.teams[board.chooserTeamIndex as number]) board.chooserTeamIndex = null;
+  if (!Number.isInteger(board.round) || ![1, 2, 3].includes(board.round)) board.round = 1;
+  if (!board.rounds) {
+    board.rounds = {
+      1: { categories: board.categories, categoryNotes: board.categoryNotes, cells: board.cells },
+      2: emptyRound(ROUND_TWO_POINTS),
+    };
+  }
+  for (const [round, points] of [[1, POINTS], [2, ROUND_TWO_POINTS]] as const) {
+    const saved = board.rounds[round];
+    if (!saved || !Array.isArray(saved.categories) || !Array.isArray(saved.cells)) {
+      board.rounds[round] = emptyRound(points);
+    } else if (!Array.isArray(saved.categoryNotes) || saved.categoryNotes.length !== saved.categories.length) {
+      saved.categoryNotes = saved.categories.map(() => '');
+    }
+  }
+  board.finalJeopardy ||= { category: '', clue: '', answer: '' };
+  board.finalJeopardy.category = String(board.finalJeopardy.category || '');
+  board.finalJeopardy.clue = String(board.finalJeopardy.clue || '');
+  board.finalJeopardy.answer = String(board.finalJeopardy.answer || '');
+  board.finalJeopardy.lowConfidence = board.finalJeopardy.lowConfidence === true;
+  board.finalJeopardy.confidenceNote = String(board.finalJeopardy.confidenceNote || '');
+  if (!Array.isArray(board.finalWagers) || board.finalWagers.length !== board.teams.length) board.finalWagers = Array(board.teams.length).fill(null);
+  if (!Array.isArray(board.finalScoredTeams) || board.finalScoredTeams.length !== board.teams.length) board.finalScoredTeams = Array(board.teams.length).fill(false);
+  if (!Array.isArray(board.sheetPlayedCategories)) board.sheetPlayedCategories = [];
+  if (!Array.isArray(board.pendingSheetPlayEvents)) board.pendingSheetPlayEvents = [];
+  if (typeof board.sheetPlayGameId !== 'string' || !board.sheetPlayGameId) board.sheetPlayGameId = crypto.randomUUID();
+  board.pendingSheetPlayEvents = board.pendingSheetPlayEvents.filter((event) => (
+    event
+    && typeof event.eventId === 'string'
+    && Number.isInteger(event.round)
+    && [1, 2, 3].includes(event.round)
+    && typeof event.category === 'string'
+    && typeof event.clue === 'string'
+  ));
+  ensureDailyDoubles(board);
+  if (board.round !== 3) {
+    board.categories = board.rounds[board.round].categories;
+    board.categoryNotes = board.rounds[board.round].categoryNotes;
+    board.cells = board.rounds[board.round].cells;
+  }
   delete (board as Board & { scoreHistory?: unknown[] }).scoreHistory;
   return board;
+}
+
+function emptyRound(points: number[]): RoundData {
+  const categories = Array.from({ length: 6 }, (_, index) => `Category ${index + 1}`);
+  return {
+    categories,
+    categoryNotes: categories.map(() => ''),
+    cells: categories.flatMap((_, catIndex) => points.map((value) => ({
+      catIndex, points: value, clue: '', answer: '', used: false, lowConfidence: false,
+    }))),
+  };
+}
+
+function pointsForRound(round: number): number[] {
+  return round === 2 ? ROUND_TWO_POINTS : POINTS;
+}
+
+function pickDailyDoubles(round: number): DailyDoubleSquare[] {
+  const categories = Array.from({ length: 6 }, (_, index) => index);
+  for (let index = categories.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [categories[index], categories[swap]] = [categories[swap], categories[index]];
+  }
+  const eligiblePoints = pointsForRound(round).slice(1);
+  return categories.slice(0, DAILY_DOUBLE_COUNT).map((catIndex) => ({
+    catIndex,
+    points: eligiblePoints[Math.floor(Math.random() * eligiblePoints.length)],
+  }));
+}
+
+function validDailyDoubles(squares: DailyDoubleSquare[] | undefined, round: number): boolean {
+  const eligible = pointsForRound(round).slice(1);
+  return Array.isArray(squares)
+    && squares.length === DAILY_DOUBLE_COUNT
+    && squares.every((square) => Number.isInteger(square?.catIndex)
+      && square.catIndex >= 0 && square.catIndex < 6
+      && eligible.includes(square.points))
+    && new Set(squares.map((square) => square.catIndex)).size === DAILY_DOUBLE_COUNT;
+}
+
+function ensureDailyDoubles(board: Board): void {
+  if (!board.dailyDoubles || typeof board.dailyDoubles !== 'object') board.dailyDoubles = {};
+  [1, 2].forEach((round) => {
+    if (!validDailyDoubles(board.dailyDoubles[round], round)) {
+      board.dailyDoubles[round] = pickDailyDoubles(round);
+    }
+  });
+}
+
+function saveActiveRound(board: Board): void {
+  if (board.round !== 3) {
+    board.rounds[board.round] = {
+      categories: board.categories,
+      categoryNotes: board.categoryNotes,
+      cells: board.cells,
+    };
+  }
 }
 
 function buildPrompt(categories: string[], ageGroup: string, categoryNotes: string[]): string {
@@ -336,7 +617,7 @@ interface ReviewProblem { category?: string; points?: number; reason?: string; c
 interface ReviewResponse { problems?: ReviewProblem[] }
 interface Resolution { reason: string; clue: string; answer: string }
 
-function buildReviewPrompt(entries: ReviewEntry[]): string {
+function buildReviewPrompt(entries: ReviewEntry[], pointValues: number[]): string {
   const listing = entries
     .map((e) => {
       const guidance = e.categoryNote ? `\nCategory guidance: ${e.categoryNote}` : '';
@@ -359,7 +640,7 @@ For EACH clue/answer pair below, check:
 
 Any entry marked KNOWN ISSUE has already failed review and must be replaced regardless of your own judgment.
 
-When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value, following its category guidance (if any). Match the difficulty to the point value (100 = very easy, 500 = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
+When an entry has a problem — whether you found it yourself or it was marked as a known issue — write a brand new clue and answer for that exact category and point value, following its category guidance (if any). Match the difficulty to the point value (${pointValues[0]} = very easy, ${pointValues[pointValues.length - 1]} = challenging, per the usual Jeopardy-style curve) and follow the same clue style as the rest of the board: a statement of fact, not a question, that does not give away the answer, with exactly one correct answer.
 
 Board:
 
@@ -378,7 +659,7 @@ Respond with ONLY raw JSON in exactly this shape (empty array if every entry is 
 // -> { reason, clue, answer } (clue/answer are '' if no replacement was
 // produced), or null (distinct from an empty Map) if the call itself failed,
 // so callers can tell "nothing wrong" apart from "couldn't check".
-async function reviewGeneratedEntries(entries: ReviewEntry[], categories: string[], apiKey: string): Promise<Map<string, Resolution> | null> {
+async function reviewGeneratedEntries(entries: ReviewEntry[], categories: string[], apiKey: string, pointValues: number[]): Promise<Map<string, Resolution> | null> {
   if (!entries.length) return new Map();
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -388,7 +669,7 @@ async function reviewGeneratedEntries(entries: ReviewEntry[], categories: string
         model: MODEL,
         max_tokens: 3072,
         response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: buildReviewPrompt(entries) }],
+        messages: [{ role: 'user', content: buildReviewPrompt(entries, pointValues) }],
       }),
     });
     if (!response.ok) return null;
@@ -408,7 +689,7 @@ async function reviewGeneratedEntries(entries: ReviewEntry[], categories: string
     problems.forEach((problem) => {
       const catIndex = categories.indexOf(problem.category || '');
       const points = Number(problem.points);
-      if (catIndex === -1 || !POINTS.includes(points)) return;
+      if (catIndex === -1 || !pointValues.includes(points)) return;
       flagged.set(`${catIndex}|${points}`, {
         reason: String(problem.reason || 'Flagged by review pass'),
         clue: String(problem.clue || ''),
@@ -424,10 +705,10 @@ async function reviewGeneratedEntries(entries: ReviewEntry[], categories: string
 const GENERATE_MAX_ATTEMPTS = 2;
 const REPAIR_MAX_ATTEMPTS = 5;
 
-function toParsedShape(entryMap: Map<string, { clue: string; answer: string }>, categories: string[]): Record<string, GeneratedCell[]> {
+function toParsedShape(entryMap: Map<string, { clue: string; answer: string }>, categories: string[], pointValues: number[]): Record<string, GeneratedCell[]> {
   const shape: Record<string, GeneratedCell[]> = {};
   categories.forEach((catName, catIndex) => {
-    shape[catName] = POINTS.map((points) => {
+    shape[catName] = pointValues.map((points) => {
       const entry = entryMap.get(`${catIndex}|${points}`) || { clue: '', answer: '' };
       return { points, clue: entry.clue, answer: entry.answer };
     });
@@ -441,9 +722,13 @@ export class GameRoom extends DurableObject<Env> {
   private currentQuestion: HostQuestion | null = null;
   private currentBuzzer: HostBuzzer | null = null;
   private revision = 0;
+  private readonly sheetWriteUrl: string;
+  private readonly sheetWriteToken: string;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.sheetWriteUrl = String(env.JEOPARDY_SHEET_WRITE_URL || '').trim();
+    this.sheetWriteToken = String(env.JEOPARDY_SHEET_WRITE_TOKEN || '').trim();
     ctx.blockConcurrencyWhile(async () => {
       this.board = normalizedBoard((await ctx.storage.get<Board>('board')) || (initialBoard as Board));
       this.config = (await ctx.storage.get<GameConfig>('config')) || { apiKey: '' };
@@ -452,6 +737,97 @@ export class GameRoom extends DurableObject<Env> {
       this.revision = (await ctx.storage.get<number>('revision')) || 0;
       await ctx.storage.put({ board: this.board, config: this.config });
     });
+  }
+
+  private async flushPendingSheetPlayEvents(): Promise<SheetPlaySyncStatus> {
+    const pending = [...(this.board.pendingSheetPlayEvents || [])];
+    const trackingConfigured = Boolean(this.sheetWriteUrl && this.sheetWriteToken);
+    if (!pending.length) {
+      return { trackingConfigured, pendingSheetPlayCount: 0, sheetTrackingWarning: '' };
+    }
+    if (!trackingConfigured) {
+      return {
+        trackingConfigured: false,
+        pendingSheetPlayCount: pending.length,
+        sheetTrackingWarning: 'Play-count sync is not configured; pending sheet updates will retry after setup.',
+      };
+    }
+
+    const completedEventIds = new Set<string>();
+    let warning = '';
+    let attempted = 0;
+    for (const event of pending) {
+      if (attempted >= SHEET_SYNC_BATCH_SIZE) {
+        continue;
+      }
+      attempted += 1;
+      try {
+        const response = await fetch(this.sheetWriteUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'record-play', ...event, token: this.sheetWriteToken }),
+          signal: AbortSignal.timeout(10000),
+        });
+        let responseData: { ok?: boolean; retryable?: boolean; error?: string };
+        try {
+          const value: unknown = await response.json();
+          responseData = value && typeof value === 'object'
+            ? value as { ok?: boolean; retryable?: boolean; error?: string }
+            : {};
+        } catch {
+          throw new Error(`Apps Script returned non-JSON data (HTTP ${response.status})`);
+        }
+        if (response.ok && responseData.ok === true) {
+          completedEventIds.add(event.eventId);
+          continue;
+        }
+        const message = responseData.error || `Apps Script returned HTTP ${response.status}`;
+        if (responseData.retryable === false) {
+          console.error('Could not record sheet play count:', message);
+          warning = `A sheet play count could not be recorded: ${message}`;
+          completedEventIds.add(event.eventId);
+          continue;
+        }
+        throw new Error(message);
+      } catch (error) {
+        console.warn('Could not sync a sheet play count; it will be retried:', error);
+      }
+    }
+    if (completedEventIds.size) {
+      this.board.pendingSheetPlayEvents = (this.board.pendingSheetPlayEvents || [])
+        .filter((event) => !completedEventIds.has(event.eventId));
+      await this.ctx.storage.put('board', this.board);
+    }
+    const remaining = this.board.pendingSheetPlayEvents || [];
+    if (remaining.length && !warning) {
+      warning = `${remaining.length} sheet play-count update(s) are waiting to sync and will retry automatically.`;
+    } else if (remaining.length) {
+      warning += ` ${remaining.length} update(s) will retry automatically.`;
+    }
+    return {
+      trackingConfigured: true,
+      pendingSheetPlayCount: remaining.length,
+      sheetTrackingWarning: warning,
+    };
+  }
+
+  private sheetTrackingStatus(): SheetPlaySyncStatus {
+    const pendingSheetPlayCount = this.board.pendingSheetPlayEvents?.length || 0;
+    const trackingConfigured = Boolean(this.sheetWriteUrl && this.sheetWriteToken);
+    return {
+      trackingConfigured,
+      pendingSheetPlayCount,
+      sheetTrackingWarning: pendingSheetPlayCount && !trackingConfigured
+        ? 'Play-count sync is not configured; pending sheet updates will retry after setup.'
+        : '',
+    };
+  }
+
+  private schedulePendingSheetPlaySync(): void {
+    if (!this.board.pendingSheetPlayEvents?.length) return;
+    this.ctx.waitUntil(this.flushPendingSheetPlayEvents().catch((error) => {
+      console.error('Background sheet play-count sync failed:', error);
+    }));
   }
 
   private hostState(): HostState {
@@ -537,9 +913,135 @@ export class GameRoom extends DurableObject<Env> {
 
       if (url.pathname === '/api/board' && method === 'GET') return json(this.board);
 
+      if (url.pathname === '/api/sheet/categories' && method === 'GET') {
+        const round = Number(url.searchParams.get('round'));
+        if (![1, 2].includes(round)) return json({ error: 'round must be 1 or 2' }, 400);
+        try {
+          const tracking = await this.flushPendingSheetPlayEvents();
+          const response = await fetch(FAMILY_SHEET_CSV_URL);
+          if (!response.ok) throw new Error(`Google Sheets returned HTTP ${response.status}`);
+          return json({ round, categories: parseFamilySheet(await response.text(), round), ...tracking });
+        } catch (error) {
+          console.error('Could not load Family Jeopardy sheet:', error);
+          const message = error instanceof Error ? error.message : String(error);
+          return json({ error: `Could not load categories from the Google Sheet: ${message}` }, 502);
+        }
+      }
+
+      if (url.pathname === '/api/sheet/final-questions' && method === 'GET') {
+        try {
+          const tracking = await this.flushPendingSheetPlayEvents();
+          const response = await fetch(FAMILY_SHEET_CSV_URL);
+          if (!response.ok) throw new Error(`Google Sheets returned HTTP ${response.status}`);
+          return json({ questions: parseFamilyFinalQuestions(await response.text()), ...tracking });
+        } catch (error) {
+          console.error('Could not load Final Jeopardy questions from the Family Jeopardy sheet:', error);
+          const message = error instanceof Error ? error.message : String(error);
+          return json({ error: `Could not load Final Jeopardy questions from the Google Sheet: ${message}` }, 502);
+        }
+      }
+
+      if (url.pathname === '/api/board/import-sheet' && method === 'POST') {
+        const body = await request.json<{ round?: unknown; categories?: unknown }>();
+        const round = Number(body.round);
+        if (![1, 2].includes(round)) return json({ error: 'round must be 1 or 2' }, 400);
+        if (!Array.isArray(body.categories) || body.categories.length !== 6 || !body.categories.every(isSheetCategory)) {
+          return json({ error: 'categories must contain exactly 6 valid sheet categories' }, 400);
+        }
+        const categories = body.categories;
+        const names = categories.map((category) => category.name.trim());
+        if (names.some((name) => !name || name.length > 60) || new Set(names).size !== 6) {
+          return json({ error: 'Choose six non-empty, unique category names no longer than 60 characters' }, 400);
+        }
+        if (categories.some((category) => category.cells.length !== SHEET_SOURCE_POINTS.length
+          || category.cells.some((cell, index) => cell.sourcePoints !== SHEET_SOURCE_POINTS[index] || !cell.clue || !cell.answer))) {
+          return json({ error: 'Each category must contain five non-empty clues and answers in point order' }, 400);
+        }
+        if (this.board.round !== round) return json({ error: `Open Round ${round} before importing categories` }, 409);
+        if (this.currentQuestion && !this.currentQuestion.final && this.currentQuestion.round === round) {
+          return json({ error: 'Close the active host question before replacing this round' }, 409);
+        }
+        const targetPoints = pointsForRound(round);
+        const roundData: RoundData = {
+          categories: names,
+          categoryNotes: Array(6).fill(''),
+          cells: categories.flatMap((category, catIndex) => category.cells.map((sourceCell, index) => ({
+            catIndex,
+            points: targetPoints[index],
+            clue: sourceCell.clue,
+            answer: sourceCell.answer,
+            used: false,
+            lowConfidence: sourceCell.confidence.toLowerCase() !== 'high' || Boolean(sourceCell.confidenceNote),
+            confidenceNote: sourceCell.confidenceNote,
+          }))),
+        };
+        this.board.rounds[round] = roundData;
+        this.board.categories = roundData.categories;
+        this.board.categoryNotes = roundData.categoryNotes;
+        this.board.cells = roundData.cells;
+        saveActiveRound(this.board);
+        await this.ctx.storage.put('board', this.board);
+        this.broadcast({ type: 'board-updated', sentAt: Date.now() });
+        return json(this.board);
+      }
+
+      if (url.pathname === '/api/board/round' && method === 'PUT') {
+        const body = await request.json<{ round?: number }>();
+        const round = Number(body.round);
+        if (![1, 2, 3].includes(round)) return json({ error: 'round must be 1, 2, or 3' }, 400);
+        const previousRound = this.board.round;
+        saveActiveRound(this.board);
+        this.board.round = round;
+        if (round !== 3) {
+          this.board.categories = this.board.rounds[round].categories;
+          this.board.categoryNotes = this.board.rounds[round].categoryNotes;
+          this.board.cells = this.board.rounds[round].cells;
+        } else if (previousRound !== 3) {
+          this.board.finalWagers = Array(this.board.teams.length).fill(null);
+          this.board.finalScoredTeams = Array(this.board.teams.length).fill(false);
+        }
+        saveActiveRound(this.board);
+        await this.ctx.storage.put('board', this.board);
+        if (round === 3) {
+          await this.setCurrentQuestion({
+            final: true, round: 3, catIndex: -1,
+            category: this.board.finalJeopardy.category || 'Final Jeopardy',
+            points: 0, clue: this.board.finalJeopardy.clue, answer: this.board.finalJeopardy.answer,
+          });
+        } else {
+          await this.setCurrentQuestion(null);
+        }
+        this.broadcast({ type: 'board-updated', sentAt: Date.now() });
+        return json(this.board);
+      }
+
+      if (url.pathname === '/api/board/final' && method === 'PUT') {
+        const body = await request.json<{ category?: string; clue?: string; answer?: string; lowConfidence?: boolean; confidenceNote?: string }>();
+        this.board.finalJeopardy = {
+          category: String(body.category || '').trim().slice(0, 60),
+          clue: String(body.clue || '').trim().slice(0, 4000),
+          answer: String(body.answer || '').trim().slice(0, 2000),
+          lowConfidence: body.lowConfidence === true,
+          confidenceNote: body.lowConfidence === true ? String(body.confidenceNote || '').trim().slice(0, 1000) : '',
+        };
+        if (this.board.round === 3 && this.currentQuestion?.final) {
+          this.currentQuestion.category = this.board.finalJeopardy.category || 'Final Jeopardy';
+          this.currentQuestion.clue = this.board.finalJeopardy.clue;
+          this.currentQuestion.answer = this.board.finalJeopardy.answer;
+          this.revision += 1;
+          await this.ctx.storage.put({ currentQuestion: this.currentQuestion, revision: this.revision });
+          this.broadcastHostState();
+        }
+        saveActiveRound(this.board);
+        await this.ctx.storage.put('board', this.board);
+        this.broadcast({ type: 'board-updated', sentAt: Date.now() });
+        return json(this.board);
+      }
+
       if (url.pathname === '/api/board/title' && method === 'PUT') {
         const body = await request.json<{ title?: string }>();
         this.board.gameTitle = String(body.title || '').trim().slice(0, 60) || DEFAULT_GAME_TITLE;
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
         return json(this.board);
       }
@@ -554,6 +1056,7 @@ export class GameRoom extends DurableObject<Env> {
         if (body.categoryNotes !== undefined) {
           this.board.categoryNotes = body.categoryNotes.map((note) => String(note || '').slice(0, 300));
         }
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
         return json(this.board);
       }
@@ -567,6 +1070,7 @@ export class GameRoom extends DurableObject<Env> {
         if (!valid(questionTimerSeconds) || !valid(buzzTimerSeconds)) return json({ error: 'Timers must be between 1 and 120 seconds, or disabled' }, 400);
         this.board.questionTimerSeconds = questionTimerSeconds;
         this.board.buzzTimerSeconds = buzzTimerSeconds;
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
         return json(this.board);
       }
@@ -578,6 +1082,8 @@ export class GameRoom extends DurableObject<Env> {
         if (typeof body.clue === 'string') cell.clue = body.clue;
         if (typeof body.answer === 'string') cell.answer = body.answer;
         cell.lowConfidence = false;
+        cell.confidenceNote = '';
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
         return json(cell);
       }
@@ -586,17 +1092,36 @@ export class GameRoom extends DurableObject<Env> {
         const body = await request.json<{ catIndex: number; points: number }>();
         const cell = cellFor(this.board, Number(body.catIndex), Number(body.points));
         if (!cell) return json({ error: 'cell not found' }, 404);
+        if ([1, 2].includes(this.board.round)) {
+          queueSheetPlayEvent(this.board, this.board.round, this.board.categories[cell.catIndex]);
+        }
         cell.used = true;
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
-        return json(cell);
+        const tracking = this.sheetTrackingStatus();
+        this.schedulePendingSheetPlaySync();
+        return json({ ...cell, ...tracking });
       }
 
       if (url.pathname === '/api/board/reset' && method === 'POST') {
+        this.board.rounds[1].cells.forEach((cell) => { cell.used = false; });
+        this.board.rounds[2].cells.forEach((cell) => { cell.used = false; });
         this.board.cells.forEach((cell) => { cell.used = false; });
         this.board.teams.forEach((team) => { team.score = 0; });
+        this.board.finalWagers = Array(this.board.teams.length).fill(null);
+        this.board.finalScoredTeams = Array(this.board.teams.length).fill(false);
+        this.board.sheetPlayedCategories = [];
+        this.board.sheetPlayGameId = crypto.randomUUID();
+        this.board.dailyDoubles = { 1: pickDailyDoubles(1), 2: pickDailyDoubles(2) };
         this.board.chooserTeamIndex = null;
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
-        await this.setCurrentQuestion(null);
+        await this.setCurrentQuestion(this.board.round === 3 ? {
+          final: true, round: 3, catIndex: -1,
+          category: this.board.finalJeopardy.category || 'Final Jeopardy',
+          points: 0, clue: this.board.finalJeopardy.clue, answer: this.board.finalJeopardy.answer,
+        } : null);
+        this.broadcast({ type: 'board-updated', sentAt: Date.now() });
         return json(this.board);
       }
 
@@ -607,22 +1132,72 @@ export class GameRoom extends DurableObject<Env> {
         this.board.teams.forEach((team, index) => {
           team.name = String(teamNames[index] || '').slice(0, 30) || `Team ${index + 1}`;
         });
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
         return json(this.board);
       }
 
       if (url.pathname === '/api/board/score' && method === 'POST') {
-        const body = await request.json<{ teamIndex: number; correct: boolean }>();
+        const body = await request.json<{ teamIndex: number; correct: boolean; wager?: number }>();
         if (!this.currentQuestion) return json({ error: 'No active question to score' }, 400);
         const team = this.board.teams[Number(body.teamIndex)];
         if (!team) return json({ error: 'team not found' }, 404);
-        const points = this.currentQuestion.points;
+        let points = this.currentQuestion.points;
+        if (this.currentQuestion.final) {
+          const wager = Number(body.wager);
+          if (!Number.isInteger(wager) || wager < 0 || wager > Math.max(0, team.score)) {
+            return json({ error: 'Final Jeopardy wager must be a whole number between 0 and the team score' }, 400);
+          }
+          if (this.board.finalScoredTeams[Number(body.teamIndex)]) return json({ error: 'This team has already been scored for Final Jeopardy' }, 409);
+          points = wager;
+          this.board.finalWagers[Number(body.teamIndex)] = wager;
+          this.board.finalScoredTeams[Number(body.teamIndex)] = true;
+        } else if (this.currentQuestion.dailyDouble) {
+          const dailyDouble = this.currentQuestion.dailyDouble;
+          if (dailyDouble.wager === null || dailyDouble.teamIndex === null) return json({ error: 'Set the Daily Double wager before scoring.' }, 409);
+          if (dailyDouble.teamIndex !== Number(body.teamIndex)) return json({ error: `Only ${dailyDouble.teamName} may answer this Daily Double.` }, 409);
+          if (dailyDouble.scored) return json({ error: 'This Daily Double has already been scored.' }, 409);
+          points = dailyDouble.wager;
+          dailyDouble.scored = true;
+        }
         team.score += body.correct ? points : -points;
         if (body.correct) this.board.chooserTeamIndex = Number(body.teamIndex);
-        await this.ctx.storage.put('board', this.board);
+        if (this.currentQuestion.final && this.board.finalScoredTeams.every(Boolean)) {
+          queueSheetPlayEvent(this.board, 3, this.board.finalJeopardy.category, this.board.finalJeopardy.clue);
+        }
+        saveActiveRound(this.board);
+        await this.ctx.storage.put({ board: this.board, currentQuestion: this.currentQuestion, revision: this.revision });
         this.broadcastHostState();
         this.broadcast({ type: 'board-updated', sentAt: Date.now() });
-        return json(this.board);
+        const tracking = this.sheetTrackingStatus();
+        this.schedulePendingSheetPlaySync();
+        return json({ ...this.board, ...tracking });
+      }
+
+      if (url.pathname === '/api/board/wager' && method === 'POST') {
+        const dailyDouble = this.currentQuestion?.dailyDouble;
+        if (!this.currentQuestion || !dailyDouble) return json({ error: 'No Daily Double question is open.' }, 409);
+        if (dailyDouble.scored) return json({ error: 'This Daily Double has already been scored.' }, 409);
+        const body = await request.json<{ teamIndex?: number; wager?: unknown }>();
+        const teamIndex = Number(body.teamIndex);
+        const team = this.board.teams[teamIndex];
+        if (!Number.isInteger(teamIndex) || !team) return json({ error: 'Choose the team that is wagering.' }, 400);
+        const wager = Number(body.wager);
+        const maxWager = Math.max(team.score, dailyDouble.topValue);
+        if (!Number.isInteger(wager) || wager < 0 || wager > maxWager) {
+          return json({ error: `${team.name} can wager a whole number from 0 to ${maxWager}.` }, 400);
+        }
+        this.currentQuestion.dailyDouble = { ...dailyDouble, teamIndex, teamName: team.name, wager };
+        this.currentBuzzer = { teamIndex, teamName: team.name };
+        this.revision += 1;
+        await this.ctx.storage.put({
+          currentQuestion: this.currentQuestion,
+          currentBuzzer: this.currentBuzzer,
+          revision: this.revision,
+        });
+        this.broadcastHostState();
+        this.broadcast({ type: 'wager-set', teamIndex, teamName: team.name, wager, sentAt: Date.now() });
+        return json(this.hostState());
       }
 
       if (url.pathname === '/api/board/score-adjust' && method === 'POST') {
@@ -632,6 +1207,7 @@ export class GameRoom extends DurableObject<Env> {
         if (!team) return json({ error: 'team not found' }, 404);
         if (delta !== 100 && delta !== -100) return json({ error: 'delta must be 100 or -100' }, 400);
         team.score += delta;
+        saveActiveRound(this.board);
         await this.ctx.storage.put('board', this.board);
         this.broadcast({ type: 'board-updated', sentAt: Date.now() });
         return json(this.board);
@@ -646,11 +1222,21 @@ export class GameRoom extends DurableObject<Env> {
         const cell = cellFor(this.board, catIndex, points);
         if (!cell) return json({ error: 'cell not found' }, 404);
         await this.setCurrentQuestion({
+          round: this.board.round,
           catIndex,
           category: this.board.categories[catIndex] || `Category ${catIndex + 1}`,
           points,
           clue: cell.clue || '',
           answer: cell.answer || '',
+          dailyDouble: !cell.used && this.board.dailyDoubles[this.board.round]?.some((square) => square.catIndex === catIndex && square.points === points)
+            ? {
+              teamIndex: this.board.chooserTeamIndex,
+              teamName: this.board.chooserTeamIndex === null ? '' : this.board.teams[this.board.chooserTeamIndex].name,
+              wager: null,
+              topValue: pointsForRound(this.board.round).slice(-1)[0],
+              scored: false,
+            }
+            : null,
         });
         return json(this.hostState());
       }
@@ -690,6 +1276,8 @@ export class GameRoom extends DurableObject<Env> {
     const ageGroup = String(body.ageGroup || '');
     const categories = this.board.categories;
     const categoryNotes = this.board.categoryNotes;
+    const pointValues = this.board.round === 2 ? ROUND_TWO_POINTS : POINTS;
+    const pointScale = this.board.round === 2 ? 2 : 1;
     const prompt = buildPrompt(categories, ageGroup, categoryNotes);
 
     let generated: Record<string, GeneratedCell[]> = {};
@@ -709,6 +1297,11 @@ export class GameRoom extends DurableObject<Env> {
       const data = await response.json<OpenAiResponse>();
       if (!response.ok) return json({ error: `OpenAI API error: ${data.error?.message || response.statusText}` }, response.status);
       generated = extractJson(data.choices?.[0]?.message?.content || '');
+      if (pointScale !== 1) {
+        Object.values(generated).forEach((entries) => entries.forEach((entry) => {
+          if (POINTS.includes(Number(entry.points))) entry.points = Number(entry.points) * pointScale;
+        }));
+      }
       flagged = findFlaggedEntries(generated, categories);
       if (flagged.size === 0) break;
     }
@@ -745,7 +1338,7 @@ export class GameRoom extends DurableObject<Env> {
       const reviewCandidates: ReviewEntry[] = [];
       categories.forEach((category, catIndex) => {
         if (!activeCatIndexes.has(catIndex)) return;
-        POINTS.forEach((points) => {
+        pointValues.forEach((points) => {
           const key = `${catIndex}|${points}`;
           const entry = entryMap.get(key);
           if (!entry) return;
@@ -761,7 +1354,7 @@ export class GameRoom extends DurableObject<Env> {
         });
       });
 
-      const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, this.config.apiKey);
+      const reviewResults = await reviewGeneratedEntries(reviewCandidates, categories, this.config.apiKey, pointValues);
       if (reviewResults === null) continue; // call failed; retry next round with the same active set
 
       const newActive = new Set<string>();
@@ -779,13 +1372,13 @@ export class GameRoom extends DurableObject<Env> {
     // Safety net: re-run the deterministic leak/duplicate check across the
     // final board even if review considers everything resolved, and force
     // anything it still catches into the low-confidence set.
-    findFlaggedEntries(toParsedShape(entryMap, categories), categories).forEach((reason, key) => {
+    findFlaggedEntries(toParsedShape(entryMap, categories, pointValues), categories).forEach((reason, key) => {
       activeKeys.add(key);
       if (!everFlagged.has(key)) everFlagged.set(key, reason);
     });
 
     categories.forEach((category, catIndex) => {
-      POINTS.forEach((points) => {
+      pointValues.forEach((points) => {
         const key = `${catIndex}|${points}`;
         const entry = entryMap.get(key);
         if (!entry) return;
@@ -797,6 +1390,7 @@ export class GameRoom extends DurableObject<Env> {
       });
     });
     this.board.ageGroup = ageGroup || this.board.ageGroup;
+    saveActiveRound(this.board);
     await this.ctx.storage.put('board', this.board);
 
     const warnings = [...everFlagged.entries()].map(([key, reason]) => {
@@ -819,11 +1413,20 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-interface Cell { catIndex: number; points: number; clue: string; answer: string; used: boolean; lowConfidence: boolean }
+interface Cell { catIndex: number; points: number; clue: string; answer: string; used: boolean; lowConfidence: boolean; confidenceNote?: string }
+interface SheetCell { sourcePoints: number; clue: string; answer: string; confidence: string; confidenceNote: string; lowConfidence: boolean }
+interface SheetCategory { name: string; playCount: number; cells: SheetCell[] }
 interface Team { name: string; score: number }
-interface Board { gameTitle: string; categories: string[]; categoryNotes: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null; questionTimerSeconds: number | null; buzzTimerSeconds: number | null }
+interface RoundData { categories: string[]; categoryNotes: string[]; cells: Cell[] }
+interface FinalJeopardy { category: string; clue: string; answer: string; lowConfidence?: boolean; confidenceNote?: string }
+interface FinalSheetQuestion { category: string; clue: string; answer: string; confidence: string; confidenceNote: string; playCount: number; lowConfidence: boolean }
+interface DailyDoubleSquare { catIndex: number; points: number }
+interface DailyDoubleState { teamIndex: number | null; teamName: string; wager: number | null; topValue: number; scored: boolean }
+interface SheetPlayEvent { eventId: string; round: number; category: string; clue: string }
+interface SheetPlaySyncStatus { trackingConfigured: boolean; pendingSheetPlayCount: number; sheetTrackingWarning: string }
+interface Board { gameTitle: string; categories: string[]; categoryNotes: string[]; ageGroup: string; cells: Cell[]; teams: Team[]; chooserTeamIndex: number | null; questionTimerSeconds: number | null; buzzTimerSeconds: number | null; round: number; rounds: Record<number, RoundData>; finalJeopardy: FinalJeopardy; finalWagers: Array<number | null>; finalScoredTeams: boolean[]; dailyDoubles: Record<number, DailyDoubleSquare[]>; sheetPlayGameId?: string; sheetPlayedCategories?: string[]; pendingSheetPlayEvents?: SheetPlayEvent[] }
 interface GameConfig { apiKey: string }
-interface HostQuestion { catIndex: number; category: string; points: number; clue: string; answer: string }
+interface HostQuestion { final?: boolean; round?: number; catIndex: number; category: string; points: number; clue: string; answer: string; dailyDouble?: DailyDoubleState | null }
 interface HostBuzzer { teamIndex: number; teamName: string }
 interface HostState { revision: number; question: HostQuestion | null; buzzer: HostBuzzer | null; chooser: HostBuzzer | null }
 interface GeneratedCell { points: number; clue: string; answer: string }
